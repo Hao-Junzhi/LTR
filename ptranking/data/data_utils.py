@@ -837,12 +837,64 @@ def load_letor_data_as_libsvm_data(in_file, split_type=None, data_id=None, min_d
         return file_buffered_data, file_buffered_group
     else:
         return file_buffered_data
+#######################
+# Add Noise Application #
+#######################
+torch_zero = torch.FloatTensor([0.0])
+
+def np_random_noise_all_labels(batch_label, mask_ratio,weights = [0.5,0.35,0.15]):
+    '''
+    Mask the ground-truth labels with the specified ratio as '0'.
+    '''
+    size_ranking = len(batch_label)
+    num_to_mask = int(size_ranking*mask_ratio)
+    mask_ind = np.random.choice(size_ranking, size=num_to_mask, replace=False)
+
+    ind_num_rele = list(range(3))
+    batch_label[:, mask_ind] = random.choices(ind_num_rele,weights ,k=1)[0]
+
+    if np.greater(batch_label, 0.0).any(): # whether the masked one includes explicit positive labels
+        return batch_label
+    else:
+        return None
+
+def random_addn_all_labels(batch_ranking, batch_label, mask_ratio, mask_value=0, presort=False):
+    '''
+    Mask the ground-truth labels with the specified ratio as '0'. Meanwhile, re-sort according to the labels if required.
+    :param doc_reprs:
+    :param doc_labels:
+    :param mask_ratio: the ratio of labels to be masked
+    :param mask_value:
+    :param presort:
+    :return:
+    '''
+
+    size_ranking = batch_label.size(1)
+    num_to_mask = int(size_ranking*mask_ratio)
+    mask_ind = np.random.choice(size_ranking, size=num_to_mask, replace=False)
+    ind_num_rele = list(range(6))
+    batch_label[:, mask_ind] = random.choices(ind_num_rele,weights=[0.5,0.19,0.15,0.1,0.05,0.01],size=1)[0]
+
+
+    if torch.gt(batch_label, torch_zero).any(): # whether the masked one includes explicit positive labels
+        if presort: # re-sort according to the labels if required
+            std_labels = torch.squeeze(batch_label)
+            sorted_labels, sorted_inds = torch.sort(std_labels, descending=True)
+
+            batch_label = torch.unsqueeze(sorted_labels, dim=0)
+            batch_ranking = batch_ranking[:, sorted_inds, :]
+
+        return batch_ranking, batch_label
+    else:
+        return None
 
 #######################
 # Masking Application #
 #######################
 
 torch_zero = torch.FloatTensor([0.0])
+
+
 def random_mask_all_labels(batch_ranking, batch_label, mask_ratio, mask_value=0, presort=False):
     '''
     Mask the ground-truth labels with the specified ratio as '0'. Meanwhile, re-sort according to the labels if required.
@@ -857,8 +909,8 @@ def random_mask_all_labels(batch_ranking, batch_label, mask_ratio, mask_value=0,
     size_ranking = batch_label.size(1)
     num_to_mask = int(size_ranking*mask_ratio)
     mask_ind = np.random.choice(size_ranking, size=num_to_mask, replace=False)
-
-    batch_label[:, mask_ind] = mask_value
+    ind_num_rele = list(range(3))
+    batch_label[:, mask_ind] = random.choices(ind_num_rele, weights=[0.5, 0.35, 0.15], k=1)[0]
 
     if torch.gt(batch_label, torch_zero).any(): # whether the masked one includes explicit positive labels
         if presort: # re-sort according to the labels if required
@@ -921,7 +973,8 @@ def np_random_mask_all_labels(batch_label, mask_ratio, mask_value=0):
     num_to_mask = int(size_ranking*mask_ratio)
     mask_ind = np.random.choice(size_ranking, size=num_to_mask, replace=False)
 
-    batch_label[mask_ind] = mask_value
+    ind_num_rele = list(range(3))
+    batch_label[:, mask_ind] = random.choices(ind_num_rele,weights=[0.5,0.35,0.15],k=1)[0]
 
     if np.greater(batch_label, 0.0).any(): # whether the masked one includes explicit positive labels
         return batch_label
