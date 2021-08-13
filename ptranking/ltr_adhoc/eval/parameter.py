@@ -229,6 +229,7 @@ class EvalSetting(Parameter):
     def check_consistence(self, vali_k=None, cutoffs=None):
         return (self.eval_dict['vali_k'] == vali_k) and (self.eval_dict['cutoffs'] == cutoffs)
 
+    @property
     def grid_search(self):
         if self.use_json:
             dir_output = self.json_dict['dir_output']
@@ -239,8 +240,16 @@ class EvalSetting(Parameter):
             do_summary = self.json_dict['do_summary']
             loss_guided = self.json_dict['loss_guided']
             mask_label = self.json_dict['mask']['mask_label']
+            mask_type = self.json_dict['mask']['mask_type']
+            mask_ratio = self.json_dict['mask']['mask_ratio']
+            noise_label = self.json_dict['noise']['noise_label']
+            noise_type = self.json_dict['noise']['noise_type']
+            noise_ratio = self.json_dict['noise']['noise_ratio']
+
             choice_mask_type = self.json_dict['mask']['mask_type']
             choice_mask_ratio = self.json_dict['mask']['mask_ratio']
+            choice_noise_ratio = self.json_dict['noise']['noise_ratio']
+            choice_noise_type = self.json_dict['noise']['noise_type']
 
             base_dict = dict(debug=False, grid_search=True, dir_output=dir_output)
         else:
@@ -258,14 +267,24 @@ class EvalSetting(Parameter):
 
         self.eval_dict = dict(epochs=epochs, do_validation=do_validation, vali_k=vali_k, cutoffs=cutoffs,
                               do_log=do_log, log_step=log_step, do_summary=do_summary, loss_guided=loss_guided,
-                              mask_label=mask_label)
+                              mask_label=mask_label,noise_label = noise_label)
         self.eval_dict.update(base_dict)
+        if mask_label & noise_label:
+            raise NotImplementedError('Both Mask label and Noise label')
 
         if mask_label:
             for mask_type, mask_ratio in product(choice_mask_type, choice_mask_ratio):
                 mask_dict = dict(mask_type=mask_type, mask_ratio=mask_ratio)
                 self.eval_dict.update(mask_dict)
                 yield self.eval_dict
+        elif noise_label:
+            for noise_type, noise_ratio in product(choice_noise_type, choice_noise_ratio):
+                noise_dict = dict(noise_type = noise_type, noise_ratio = noise_ratio)
+                self.eval_dict.update(noise_dict)
+            for mask_type, mask_ratio in product(choice_mask_type, choice_mask_ratio):
+                mask_dict = dict(mask_type=mask_type, mask_ratio=mask_ratio)
+                self.eval_dict.update(mask_dict)
+            yield self.eval_dict
         else:
             yield self.eval_dict
 

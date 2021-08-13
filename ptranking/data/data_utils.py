@@ -23,10 +23,10 @@ from ptranking.utils.bigdata.BigPickle import pickle_save, pickle_load
 
 ## Supported datasets and formats ##
 
-MSLETOR_SEMI  = ['MQ2007_Semi', 'MQ2008_Semi']
-MSLETOR_LIST  = ['MQ2007_List', 'MQ2008_List']
+MSLETOR_SEMI = ['MQ2007_Semi', 'MQ2008_Semi']
+MSLETOR_LIST = ['MQ2007_List', 'MQ2008_List']
 MSLETOR_SUPER = ['MQ2007_Super', 'MQ2008_Super']
-MSLETOR       = ['MQ2007_Super', 'MQ2008_Super', 'MQ2007_Semi', 'MQ2008_Semi', 'MQ2007_List', 'MQ2008_List']
+MSLETOR = ['MQ2007_Super', 'MQ2008_Super', 'MQ2007_Semi', 'MQ2008_Semi', 'MQ2007_List', 'MQ2008_List']
 
 '''
 The dataset used in the IRGAN paper, which is a revised version of MQ2008_Semi by adding some document vectors per query
@@ -35,16 +35,16 @@ are not described.
 '''
 IRGAN_MQ2008_SEMI = ['IRGAN_MQ2008_Semi']
 
-MSLRWEB       = ['MSLRWEB10K', 'MSLRWEB30K']
+MSLRWEB = ['MSLRWEB10K', 'MSLRWEB30K']
 
-YAHOO_LTR     = ['Set1', 'Set2']
-YAHOO_LTR_5Fold     = ['5FoldSet1', '5FoldSet2']
+YAHOO_LTR = ['Set1', 'Set2']
+YAHOO_LTR_5Fold = ['5FoldSet1', '5FoldSet2']
 
-ISTELLA_LTR   = ['Istella_S', 'Istella', 'Istella_X']
-ISTELLA_MAX = 1000000 # As ISTELLA contain extremely large features, e.g., 1.79769313486e+308, we replace features of this kind with a constant 1000000
+ISTELLA_LTR = ['Istella_S', 'Istella', 'Istella_X']
+ISTELLA_MAX = 1000000  # As ISTELLA contain extremely large features, e.g., 1.79769313486e+308, we replace features of this kind with a constant 1000000
 
 GLTR_LIBSVM = ['LTR_LibSVM', 'LTR_LibSVM_K']
-GLTR_LETOR  = ['LETOR', 'LETOR_K']
+GLTR_LETOR = ['LETOR', 'LETOR_K']
 
 """
 GLTR refers to General Learning-to-rank, thus
@@ -75,7 +75,8 @@ For GLTR_LETOR, it is defined as follows, where features with zero values are st
 
 ## supported feature normalization ##
 SCALER_LEVEL = ['QUERY', 'DATASET']
-SCALER_ID    = ['MinMaxScaler', 'RobustScaler', 'StandardScaler', "SLog1P"]
+SCALER_ID = ['MinMaxScaler', 'RobustScaler', 'StandardScaler', "SLog1P"]
+
 
 @unique
 class MASK_TYPE(Enum):
@@ -98,6 +99,7 @@ class SPLIT_TYPE(Enum):
     Test = auto()
     Validation = auto()
 
+
 class SymmetricLog1pScaler(object):
     """
     Symmetric Log1p Transformation
@@ -108,6 +110,7 @@ class SymmetricLog1pScaler(object):
     pages = {1649–1652}
     }
     """
+
     @staticmethod
     def fit_transform(X):
         return np.sign(X) * np.log(1.0 + np.abs(X))
@@ -146,7 +149,7 @@ def get_data_meta(data_id=None):
     elif data_id in YAHOO_LTR:
         max_rele_level = 4
         label_type = LABEL_TYPE.MultiLabel
-        num_features = 700 # libsvm format, rather than uniform number
+        num_features = 700  # libsvm format, rather than uniform number
         has_comment = False
         fold_num = 1
 
@@ -173,6 +176,7 @@ def get_data_meta(data_id=None):
                      max_rele_level=max_rele_level, fold_num=fold_num)
     return data_meta
 
+
 def get_scaler(scaler_id):
     """ Initialize the scaler-object correspondingly """
     assert scaler_id in SCALER_ID
@@ -186,6 +190,7 @@ def get_scaler(scaler_id):
         scaler = SymmetricLog1pScaler()
 
     return scaler
+
 
 def get_scaler_setting(data_id, grid_search=False, scaler_id=None):
     """
@@ -233,9 +238,10 @@ def get_scaler_setting(data_id, grid_search=False, scaler_id=None):
 
         return scale_data, scaler_id, scaler_level
 
+
 def get_buffer_file_name(data_id, file, data_dict, presort=None):
     """ Generate the file name """
-    min_rele  = data_dict['min_rele']
+    min_rele = data_dict['min_rele']
     if min_rele is not None and min_rele > 0:
         fi_suffix = '_'.join(['MiR', str(min_rele)])
     else:
@@ -243,7 +249,7 @@ def get_buffer_file_name(data_id, file, data_dict, presort=None):
 
     min_docs = data_dict['min_docs']
     if min_docs is not None and min_docs > 0:
-        if len(fi_suffix)>0:
+        if len(fi_suffix) > 0:
             fi_suffix = '_'.join([fi_suffix, 'MiD', str(min_docs)])
         else:
             fi_suffix = '_'.join(['MiD', str(min_docs)])
@@ -260,8 +266,8 @@ def get_buffer_file_name(data_id, file, data_dict, presort=None):
     if presort: pq_suffix = '_'.join([pq_suffix, 'PreSort'])
 
     # plus scaling
-    scale_data   = data_dict['scale_data']
-    scaler_id    = data_dict['scaler_id'] if 'scaler_id' in data_dict else None
+    scale_data = data_dict['scale_data']
+    scaler_id = data_dict['scaler_id'] if 'scaler_id' in data_dict else None
     scaler_level = data_dict['scaler_level'] if 'scaler_level' in data_dict else None
     if scale_data:
         assert scaler_id is not None and scaler_id in SCALER_ID and scaler_level in SCALER_LEVEL
@@ -271,24 +277,30 @@ def get_buffer_file_name(data_id, file, data_dict, presort=None):
             pq_suffix = '_'.join([pq_suffix, 'QS', scaler_id])
 
     if data_id in YAHOO_LTR:
-        perquery_file = file[:file.find('.txt')].replace(data_id.lower() + '.', 'Buffered' + data_id + '/') + '_' + pq_suffix + res_suffix + '.np'
+        perquery_file = file[:file.find('.txt')].replace(data_id.lower() + '.',
+                                                         'Buffered' + data_id + '/') + '_' + pq_suffix + res_suffix + '.np'
     elif data_id in ISTELLA_LTR:
-        perquery_file = file[:file.find('.txt')].replace(data_id, 'Buffered_' + data_id) + '_' + pq_suffix + res_suffix + '.np'
+        perquery_file = file[:file.find('.txt')].replace(data_id,
+                                                         'Buffered_' + data_id) + '_' + pq_suffix + res_suffix + '.np'
     else:
-        perquery_file = file[:file.find('.txt')].replace('Fold', 'BufferedFold') + '_' + pq_suffix + res_suffix +'.np'
+        perquery_file = file[:file.find('.txt')].replace('Fold', 'BufferedFold') + '_' + pq_suffix + res_suffix + '.np'
 
     return perquery_file
 
+
 ## ---------------------------------------------------- ##
 """ processing on letor datasets """
+
 
 def _parse_docid(comment):
     parts = comment.strip().split()
     return parts[2]
 
+
 def _parse_qid_tok(tok):
     assert tok.startswith('qid:')
     return tok[4:]
+
 
 def iter_lines(lines, has_targets=True, one_indexed=True, missing=0.0, has_comment=False):
     """
@@ -311,7 +323,7 @@ def iter_lines(lines, has_targets=True, one_indexed=True, missing=0.0, has_comme
     comment : str Comment accompanying the sample.
     """
     for line in lines:
-        #print(line)
+        # print(line)
         if has_comment:
             data, _, comment = line.rstrip().partition('#')
             toks = data.split()
@@ -350,6 +362,7 @@ def iter_lines(lines, has_targets=True, one_indexed=True, missing=0.0, has_comme
             yield (feature_vec, std_score, qid, comment)
         else:
             yield (feature_vec, std_score, qid)
+
 
 def parse_letor(source, has_targets=True, one_indexed=True, missing=0.0, has_comment=False):
     """
@@ -397,11 +410,12 @@ def parse_letor(source, has_targets=True, one_indexed=True, missing=0.0, has_com
 
     if has_comment:
         docids = [_parse_docid(comment) for comment in comments]
-        #features, std_scores, qids, docids
+        # features, std_scores, qids, docids
         return all_features_mat, all_labels_vec, qids, docids
     else:
         # features, std_scores, qids
         return all_features_mat, all_labels_vec, qids
+
 
 def clip_query_data(qid, list_docids=None, feature_mat=None, std_label_vec=None, binary_rele=False,
                     unknown_as_zero=False, clip_query=None, min_docs=None, min_rele=1, presort=None):
@@ -410,7 +424,7 @@ def clip_query_data(qid, list_docids=None, feature_mat=None, std_label_vec=None,
     if unknown_as_zero: std_label_vec = np.clip(std_label_vec, a_min=0, a_max=10) # convert unknown as zero
 
     if clip_query:
-        if feature_mat.shape[0] < min_docs: # skip queries with documents that are fewer the pre-specified min_docs
+        if feature_mat.shape[0] < min_docs:  # skip queries with documents that are fewer the pre-specified min_docs
             return None
         if (std_label_vec > 0).sum() < min_rele:
             # skip queries with no standard relevant documents, since there is no meaning for both training and testing.
@@ -434,7 +448,9 @@ def clip_query_data(qid, list_docids=None, feature_mat=None, std_label_vec=None,
         '''
     return (qid, feature_mat, std_label_vec)
 
-def iter_queries(in_file, presort=None, data_dict=None, scale_data=None, scaler_id=None, perquery_file=None, buffer=True):
+
+def iter_queries(in_file, presort=None, data_dict=None, scale_data=None, scaler_id=None, perquery_file=None,
+                 buffer=True):
     '''
     Transforms an iterator of rows to an iterator of queries (i.e., a unit of all the documents and labels associated
     with the same query). Each query is represented by a (qid, feature_mat, std_label_vec) tuple.
@@ -450,7 +466,8 @@ def iter_queries(in_file, presort=None, data_dict=None, scale_data=None, scaler_
 
     if scale_data: scaler = get_scaler(scaler_id=scaler_id)
     min_docs, min_rele = data_dict['min_docs'], data_dict['min_rele']
-    unknown_as_zero, binary_rele, has_comment = data_dict['unknown_as_zero'], data_dict['binary_rele'], data_dict['has_comment']
+    unknown_as_zero, binary_rele, has_comment = data_dict['unknown_as_zero'], data_dict['binary_rele'], data_dict[
+        'has_comment']
 
     clip_query = False
     if min_rele is not None and min_rele > 0:
@@ -490,9 +507,9 @@ def iter_queries(in_file, presort=None, data_dict=None, scale_data=None, scaler_
                 if data_dict['data_id'] in MSLETOR_LIST:
                     ''' convert the original rank-position into grade-labels '''
                     ranking_size = len(list_labels_per_q)
-                    list_labels_per_q = [ranking_size-r for r in list_labels_per_q]
+                    list_labels_per_q = [ranking_size - r for r in list_labels_per_q]
 
-                #list_docids_per_q = tmp[1]
+                # list_docids_per_q = tmp[1]
                 list_features_per_q = tmp[2]
                 feature_mat = np.vstack(list_features_per_q)
 
@@ -510,7 +527,8 @@ def iter_queries(in_file, presort=None, data_dict=None, scale_data=None, scaler_
                     list_Qs.append(Q)
         else:
             if data_dict['data_id'] in YAHOO_LTR:
-                all_features_mat, all_labels_vec, qids = parse_letor(file_obj.readlines(), has_comment=False, one_indexed=False)
+                all_features_mat, all_labels_vec, qids = parse_letor(file_obj.readlines(), has_comment=False,
+                                                                     one_indexed=False)
             else:
                 all_features_mat, all_labels_vec, qids = parse_letor(file_obj.readlines(), has_comment=False)
 
@@ -537,7 +555,7 @@ def iter_queries(in_file, presort=None, data_dict=None, scale_data=None, scaler_
                 if data_dict['data_id'] in MSLETOR_LIST:
                     ''' convert the original rank-position into grade-labels '''
                     ranking_size = len(list_labels_per_q)
-                    list_labels_per_q = [ranking_size-r for r in list_labels_per_q]
+                    list_labels_per_q = [ranking_size - r for r in list_labels_per_q]
 
                 list_features_per_q = tmp[1]
                 feature_mat = np.vstack(list_features_per_q)
@@ -565,6 +583,7 @@ def iter_queries(in_file, presort=None, data_dict=None, scale_data=None, scaler_
 
     return list_Qs
 
+
 ## ---------------------------------------------------- ##
 
 class LTRDataset(data.Dataset):
@@ -572,6 +591,7 @@ class LTRDataset(data.Dataset):
     Loading the specified dataset as data.Dataset, a pytorch format.
     We assume that checking the meaningfulness of given loading-setting is conducted beforehand.
     """
+
     def __init__(self, split_type, file, data_id=None, data_dict=None, eval_dict=None, batch_size=1, presort=False,
                  shuffle=False, hot=False, buffer=True):
         assert data_id is not None or data_dict is not None
@@ -592,15 +612,17 @@ class LTRDataset(data.Dataset):
         if data_dict['data_id'] in MSLETOR or data_dict['data_id'] in MSLRWEB \
                 or data_dict['data_id'] in YAHOO_LTR or data_dict['data_id'] in YAHOO_LTR_5Fold \
                 or data_dict['data_id'] in ISTELLA_LTR \
-                or data_dict['data_id'] == 'IRGAN_MQ2008_Semi': # supported datasets
+                or data_dict['data_id'] == 'IRGAN_MQ2008_Semi':  # supported datasets
 
             perquery_file = get_buffer_file_name(data_id=data_id, file=file, data_dict=data_dict, presort=self.presort)
 
-            if self.batch_size>1:
+            if self.batch_size > 1:
                 if hot:
-                    torch_perquery_file = perquery_file.replace('.np', '_'.join(['Bat', str(self.batch_size), 'Hot', '.torch']))
+                    torch_perquery_file = perquery_file.replace('.np', '_'.join(
+                        ['Bat', str(self.batch_size), 'Hot', '.torch']))
                 else:
-                    torch_perquery_file = perquery_file.replace('.np', '_'.join(['Bat', str(self.batch_size), '.torch']))
+                    torch_perquery_file = perquery_file.replace('.np',
+                                                                '_'.join(['Bat', str(self.batch_size), '.torch']))
             else:
                 if hot:
                     torch_perquery_file = perquery_file.replace('.np', '_Hot.torch')
@@ -608,12 +630,21 @@ class LTRDataset(data.Dataset):
                     torch_perquery_file = perquery_file.replace('.np', '.torch')
 
             if eval_dict is not None:
-                mask_label, mask_ratio, mask_type = eval_dict['mask_label'], eval_dict['mask_ratio'], eval_dict['mask_type']
-                if mask_label:
+                mask_label, mask_ratio, mask_type = eval_dict['mask_label'], eval_dict['mask_ratio'], eval_dict[
+                    'mask_type']
+                noise_label, noise_type, noise_ratio = eval_dict['noise_label'], eval_dict['noise_type'], eval_dict[
+                    'noise_ratio']
+                if mask_label & noise_label:
+                    raise NotImplementedError('Both Mask label and Noise label')
+                elif mask_label:
                     mask_label_str = '_'.join([mask_type, 'Ratio', '{:,g}'.format(mask_ratio)])
-                    torch_perquery_file = torch_perquery_file.replace('.torch', '_'+mask_label_str+'.torch')
+                    torch_perquery_file = torch_perquery_file.replace('.torch', '_' + mask_label_str + '.torch')
+                elif noise_label:
+                    noise_label_str = '_'.join([noise_type, 'Ratio', '{}'.format(noise_ratio)])
+                    torch_perquery_file = torch_perquery_file.replace('.torch', '_' + noise_label_str + '.torch')
             else:
                 mask_label = False
+                noise_label = False
 
             if os.path.exists(torch_perquery_file):
                 print('loading buffered file ...')
@@ -631,7 +662,7 @@ class LTRDataset(data.Dataset):
                     qid, doc_reprs, doc_labels = list_Qs[ind]
 
                     if self.batch_size > 1:
-                        if mask_label: raise NotImplementedError # not supported since it is rarely used.
+                        if mask_label: raise NotImplementedError  # not supported since it is rarely used.
 
                         list_ranking = []
                         list_labels = []
@@ -647,12 +678,13 @@ class LTRDataset(data.Dataset):
                         torch_batch_std_labels = torch.from_numpy(batch_std_labels).type(torch.FloatTensor)
                     else:
                         torch_batch_rankings = torch.from_numpy(doc_reprs).type(torch.FloatTensor)
-                        torch_batch_rankings = torch.unsqueeze(torch_batch_rankings, dim=0)  # a consistent batch dimension of size 1
+                        torch_batch_rankings = torch.unsqueeze(torch_batch_rankings,
+                                                               dim=0)  # a consistent batch dimension of size 1
 
                         torch_batch_std_labels = torch.from_numpy(doc_labels).type(torch.FloatTensor)
                         torch_batch_std_labels = torch.unsqueeze(torch_batch_std_labels, dim=0)
 
-                        if mask_label: # masking
+                        if mask_label:  # masking
                             if MASK_TYPE[mask_type] == MASK_TYPE.rand_mask_rele:
                                 torch_batch_rankings, torch_batch_std_labels = random_mask_rele_labels(
                                     batch_ranking=torch_batch_rankings, batch_label=torch_batch_std_labels,
@@ -660,7 +692,8 @@ class LTRDataset(data.Dataset):
 
                             elif MASK_TYPE[mask_type] == MASK_TYPE.rand_mask_all:
                                 masked_res = random_mask_all_labels(batch_ranking=torch_batch_rankings,
-                                    batch_label=torch_batch_std_labels, mask_ratio=mask_ratio, mask_value=0,
+                                                                    batch_label=torch_batch_std_labels,
+                                                                    mask_ratio=mask_ratio, mask_value=0,
                                                                     presort=self.presort)
                                 if masked_res is not None:
                                     torch_batch_rankings, torch_batch_std_labels = masked_res
@@ -669,18 +702,20 @@ class LTRDataset(data.Dataset):
                             else:
                                 raise NotImplementedError
                     if hot:
-                        assert mask_label is not True # not supported since it is rarely used.
+                        assert mask_label is not True  # not supported since it is rarely used.
                         max_rele_level = data_dict['max_rele_level']
                         assert max_rele_level is not None
 
                         torch_batch_std_hot_labels = get_one_hot_reprs(torch_batch_std_labels)
-                        batch_cnts = batch_count(batch_std_labels=torch_batch_std_labels, max_rele_grade=max_rele_level, descending=True)
+                        batch_cnts = batch_count(batch_std_labels=torch_batch_std_labels, max_rele_grade=max_rele_level,
+                                                 descending=True)
 
-                        self.list_torch_Qs.append((qid, torch_batch_rankings, torch_batch_std_labels, torch_batch_std_hot_labels, batch_cnts))
+                        self.list_torch_Qs.append(
+                            (qid, torch_batch_rankings, torch_batch_std_labels, torch_batch_std_hot_labels, batch_cnts))
                     else:
                         self.list_torch_Qs.append((qid, torch_batch_rankings, torch_batch_std_labels))
-                #buffer
-                #print('Num of q:', len(self.list_torch_Qs))
+                # buffer
+                # print('Num of q:', len(self.list_torch_Qs))
                 if buffer:
                     parent_dir = Path(torch_perquery_file).parent
                     if not os.path.exists(parent_dir):
@@ -692,12 +727,13 @@ class LTRDataset(data.Dataset):
     def get_default_data_dict(self, data_id, scaler_id=None):
         ''' a default setting for loading a dataset '''
         min_docs = 1
-        min_rele = -1 # with -1, it means that we don't care with dumb queries that has no relevant documents. Say, for checking the statistics of an original dataset
+        min_rele = -1  # with -1, it means that we don't care with dumb queries that has no relevant documents. Say, for checking the statistics of an original dataset
         scale_data, scaler_id, scaler_level = get_scaler_setting(data_id=data_id, scaler_id=scaler_id)
 
         train_presort = False if data_id in MSLETOR_SEMI else True
 
-        data_dict = dict(data_id=data_id, min_docs=min_docs, min_rele=min_rele, binary_rele=False,unknown_as_zero=False,
+        data_dict = dict(data_id=data_id, min_docs=min_docs, min_rele=min_rele, binary_rele=False,
+                         unknown_as_zero=False,
                          train_presort=train_presort, validation_presort=True, test_presort=True,
                          train_batch_size=1, validation_batch_size=1, test_batch_size=1,
                          scale_data=scale_data, scaler_id=scaler_id, scaler_level=scaler_level)
@@ -719,8 +755,10 @@ class LTRDataset(data.Dataset):
         if self.shuffle: random.shuffle(list_inds)
 
         for ind in list_inds:
-            qid, torch_batch_rankings, torch_batch_std_labels, torch_batch_std_hot_labels, batch_cnts = self.list_torch_Qs[ind]
+            qid, torch_batch_rankings, torch_batch_std_labels, torch_batch_std_hot_labels, batch_cnts = \
+            self.list_torch_Qs[ind]
             yield qid, torch_batch_rankings, torch_batch_std_labels, torch_batch_std_hot_labels, batch_cnts
+
 
 ## ------ loading letor data as libsvm data ----- ##
 
@@ -728,17 +766,17 @@ def get_buffer_file_name_libsvm(in_file, data_id=None, eval_dict=None, need_grou
     """ get absolute paths of data file and group file """
 
     if data_id in MSLETOR or data_id in MSLRWEB:
-        buffer_prefix       = in_file.replace('Fold', 'BufferedFold')
-        file_buffered_data  = buffer_prefix.replace('txt', 'data')
+        buffer_prefix = in_file.replace('Fold', 'BufferedFold')
+        file_buffered_data = buffer_prefix.replace('txt', 'data')
         if need_group: file_buffered_group = buffer_prefix.replace('txt', 'group')
     elif data_id in YAHOO_LTR:
-        buffer_prefix       = in_file[:in_file.find('.txt')].replace(data_id.lower() + '.', 'Buffered' + data_id + '/')
-        file_buffered_data  = buffer_prefix  + '.data'
-        if need_group: file_buffered_group = buffer_prefix  + '.group'
+        buffer_prefix = in_file[:in_file.find('.txt')].replace(data_id.lower() + '.', 'Buffered' + data_id + '/')
+        file_buffered_data = buffer_prefix + '.data'
+        if need_group: file_buffered_group = buffer_prefix + '.group'
     elif data_id in ISTELLA_LTR:
-        buffer_prefix       = in_file[:in_file.find('.txt')].replace(data_id, 'Buffered_' + data_id)
-        file_buffered_data  = buffer_prefix  + '.data'
-        if need_group: file_buffered_group = buffer_prefix  + '.group'
+        buffer_prefix = in_file[:in_file.find('.txt')].replace(data_id, 'Buffered_' + data_id)
+        file_buffered_data = buffer_prefix + '.data'
+        if need_group: file_buffered_group = buffer_prefix + '.group'
     else:
         raise NotImplementedError
 
@@ -746,23 +784,24 @@ def get_buffer_file_name_libsvm(in_file, data_id=None, eval_dict=None, need_grou
         mask_ratio = eval_dict['mask_ratio']
         mask_type = eval_dict['mask_type']
         mask_label_str = '_'.join([mask_type, 'Ratio', '{:,g}'.format(mask_ratio)])
-        file_buffered_data = file_buffered_data.replace('.data', '_'+mask_label_str+'.data')
-        file_buffered_group = file_buffered_group.replace('.group', '_'+mask_label_str+'.group')
+        file_buffered_data = file_buffered_data.replace('.data', '_' + mask_label_str + '.data')
+        file_buffered_group = file_buffered_group.replace('.group', '_' + mask_label_str + '.group')
 
     if need_group:
         return file_buffered_data, file_buffered_group
     else:
         return file_buffered_data
 
+
 def letor_to_libsvm(doc_reprs=None, doc_labels=None, output_feature=None, output_group=None, need_group=False):
     ''' convert query-level letor-data to libsvm data '''
     num_docs = doc_reprs.shape[0]
-    if need_group: output_group.write(str(num_docs) + "\n") # group file
-    for i in range(num_docs): # per document only include nonzero features
+    if need_group: output_group.write(str(num_docs) + "\n")  # group file
+    for i in range(num_docs):  # per document only include nonzero features
         feats = doc_reprs[i, :].tolist()
         libsvm_feats = []
         for key, val in enumerate(feats):
-            if val != 0.0: libsvm_feats.append(':'.join([str(key+1), str(val)]))
+            if val != 0.0: libsvm_feats.append(':'.join([str(key + 1), str(val)]))
         output_feature.write(str(doc_labels[i]) + " " + " ".join(libsvm_feats) + "\n")
 
 
@@ -782,16 +821,18 @@ def load_letor_data_as_libsvm_data(in_file, split_type=None, data_id=None, min_d
     if data_dict is None:
         scale_data, scaler_id, scaler_level = get_scaler_setting(data_id=data_id, scaler_id=scaler_id)
         data_dict = dict(data_id=data_id, min_docs=min_docs, min_rele=min_rele, binary_rele=False,
-                         unknown_as_zero = False, scale_data=scale_data, scaler_id=scaler_id, scaler_level=scaler_level)
+                         unknown_as_zero=False, scale_data=scale_data, scaler_id=scaler_id, scaler_level=scaler_level)
         data_meta = get_data_meta(data_id=data_id)
         data_dict.update(data_meta)
     elif data_id is None:
         data_id = data_dict['data_id']
 
     if need_group:
-        file_buffered_data, file_buffered_group = get_buffer_file_name_libsvm(in_file, data_id=data_id, eval_dict=eval_dict, need_group=True)
+        file_buffered_data, file_buffered_group = get_buffer_file_name_libsvm(in_file, data_id=data_id,
+                                                                              eval_dict=eval_dict, need_group=True)
     else:
-        file_buffered_data = get_buffer_file_name_libsvm(in_file, data_id=data_id, eval_dict=eval_dict, need_group=False)
+        file_buffered_data = get_buffer_file_name_libsvm(in_file, data_id=data_id, eval_dict=eval_dict,
+                                                         need_group=False)
 
     if os.path.exists(file_buffered_data):
         if need_group:
@@ -808,18 +849,21 @@ def load_letor_data_as_libsvm_data(in_file, split_type=None, data_id=None, min_d
 
         perquery_file = get_buffer_file_name(data_id=data_id, file=in_file, data_dict=data_dict, presort=presort)
         list_Qs = iter_queries(in_file=in_file, data_dict=data_dict, scale_data=data_dict['scale_data'],
-                               scaler_id=data_dict['scaler_id'], perquery_file=perquery_file, buffer=True, presort=presort)
+                               scaler_id=data_dict['scaler_id'], perquery_file=perquery_file, buffer=True,
+                               presort=presort)
 
-        if eval_dict is not None and eval_dict['mask_label'] and split_type==SPLIT_TYPE.Train:
+        if eval_dict is not None and eval_dict['mask_label'] and split_type == SPLIT_TYPE.Train:
             if MASK_TYPE.rand_mask_rele == MASK_TYPE[eval_dict['mask_type']]:
                 for qid, doc_reprs, doc_labels in list_Qs:
-                    doc_labels = np_random_mask_rele_labels(batch_label=doc_labels, mask_ratio=eval_dict['mask_ratio'], mask_value=0)
+                    doc_labels = np_random_mask_rele_labels(batch_label=doc_labels, mask_ratio=eval_dict['mask_ratio'],
+                                                            mask_value=0)
                     if doc_labels is not None:
                         letor_to_libsvm(doc_reprs=doc_reprs.astype(np.float32), doc_labels=doc_labels.astype(np.int),
                                         output_feature=output_feature, output_group=output_group, need_group=need_group)
             elif MASK_TYPE.rand_mask_all == MASK_TYPE[eval_dict['mask_type']]:
                 for qid, doc_reprs, doc_labels in list_Qs:
-                    doc_labels = np_random_mask_all_labels(batch_label=doc_labels, mask_ratio=eval_dict['mask_ratio'], mask_value=0)
+                    doc_labels = np_random_mask_all_labels(batch_label=doc_labels, mask_ratio=eval_dict['mask_ratio'],
+                                                           mask_value=0)
                     if doc_labels is not None:
                         letor_to_libsvm(doc_reprs=doc_reprs.astype(np.float32), doc_labels=doc_labels.astype(np.int),
                                         output_feature=output_feature, output_group=output_group, need_group=need_group)
@@ -837,12 +881,15 @@ def load_letor_data_as_libsvm_data(in_file, split_type=None, data_id=None, min_d
         return file_buffered_data, file_buffered_group
     else:
         return file_buffered_data
+
+
 #######################
 # Add Noise Application #
 #######################
 torch_zero = torch.FloatTensor([0.0])
 
-def Discrete_noise_all_labels(batch_ranking, batch_label, mask_ratio, mask_value=0, presort=False):
+
+def discrete_noise_all_labels(batch_ranking, batch_label, mask_ratio, mask_value=0, presort=False):
     '''
     Mask the ground-truth labels with the specified ratio as '0'. Meanwhile, re-sort according to the labels if required.
     :param doc_reprs:
@@ -854,13 +901,13 @@ def Discrete_noise_all_labels(batch_ranking, batch_label, mask_ratio, mask_value
     '''
 
     size_ranking = batch_label.size(1)
-    num_to_mask = int(size_ranking*mask_ratio)
+    num_to_mask = int(size_ranking * mask_ratio)
     mask_ind = np.random.choice(size_ranking, size=num_to_mask, replace=False)
     ind_num_rele = list(range(3))
     batch_label[:, mask_ind] = random.choices(ind_num_rele, weights=[0.5, 0.35, 0.15], k=1)[0]
 
-    if torch.gt(batch_label, torch_zero).any(): # whether the masked one includes explicit positive labels
-        if presort: # re-sort according to the labels if required
+    if torch.gt(batch_label, torch_zero).any():  # whether the masked one includes explicit positive labels
+        if presort:  # re-sort according to the labels if required
             std_labels = torch.squeeze(batch_label)
             sorted_labels, sorted_inds = torch.sort(std_labels, descending=True)
 
@@ -872,7 +919,7 @@ def Discrete_noise_all_labels(batch_ranking, batch_label, mask_ratio, mask_value
         return None
 
 
-def Discrete_noise_rele_labels(batch_ranking, batch_label=None, mask_ratio=None, mask_value=0, presort=False):
+def discrete_noise_rele_labels(batch_ranking, batch_label=None, mask_ratio=None, mask_value=0, presort=False):
     '''
     Mask the ground-truth labels with the specified ratio as '0'. Meanwhile, re-sort according to the labels if required.
     :param doc_reprs:
@@ -883,7 +930,7 @@ def Discrete_noise_rele_labels(batch_ranking, batch_label=None, mask_ratio=None,
     :return:
     '''
 
-    assert 1 == batch_label.size(0) # todo for larger batch-size, need to per-dimension masking
+    assert 1 == batch_label.size(0)  # todo for larger batch-size, need to per-dimension masking
 
     # squeeze for easy process
     docs, labels = torch.squeeze(batch_ranking, dim=0), torch.squeeze(batch_label)
@@ -891,15 +938,16 @@ def Discrete_noise_rele_labels(batch_ranking, batch_label=None, mask_ratio=None,
     all_rele_inds = torch.gt(labels, torch_zero).nonzero()
     num_rele = all_rele_inds.size()[0]
 
-    num_to_mask = int(num_rele*mask_ratio)
+    num_to_mask = int(num_rele * mask_ratio)
     mask_inds = np.random.choice(num_rele, size=num_to_mask, replace=False)
 
-    rele_inds_to_mask = all_rele_inds[mask_inds, 0] # the 0-column corresponds to original rele index since all_rele_inds.size()=(num_rele, 1)
+    rele_inds_to_mask = all_rele_inds[
+        mask_inds, 0]  # the 0-column corresponds to original rele index since all_rele_inds.size()=(num_rele, 1)
 
     batch_label[:, rele_inds_to_mask] = mask_value
 
-    if torch.gt(batch_label, torch_zero).any(): # whether the masked one includes explicit positive labels
-        if presort: # re-sort according to the labels if required
+    if torch.gt(batch_label, torch_zero).any():  # whether the masked one includes explicit positive labels
+        if presort:  # re-sort according to the labels if required
             std_labels = torch.squeeze(batch_label)
             sorted_labels, sorted_inds = torch.sort(std_labels, descending=True)
 
@@ -917,13 +965,13 @@ def np_discrete_noise_all_labels(batch_label, mask_ratio, mask_value=0):
     Mask the ground-truth labels with the specified ratio as '0'.
     '''
     size_ranking = len(batch_label)
-    num_to_mask = int(size_ranking*mask_ratio)
+    num_to_mask = int(size_ranking * mask_ratio)
     mask_ind = np.random.choice(size_ranking, size=num_to_mask, replace=False)
 
     ind_num_rele = list(range(3))
-    batch_label[:, mask_ind] = random.choices(ind_num_rele,weights=[0.5,0.35,0.15],k=1)[0]
+    batch_label[:, mask_ind] = random.choices(ind_num_rele, weights=[0.5, 0.35, 0.15], k=1)[0]
 
-    if np.greater(batch_label, 0.0).any(): # whether the masked one includes explicit positive labels
+    if np.greater(batch_label, 0.0).any():  # whether the masked one includes explicit positive labels
         return batch_label
     else:
         return None
@@ -933,24 +981,25 @@ def np_discrete_noise_rele_labels(batch_label, mask_ratio, mask_value=0):
     '''
     Mask the ground-truth labels with the specified ratio as '0'.
     '''
-    all_rele_inds = np.greater(batch_label, 0).nonzero()[0] # due to one-dimension
-    #print('all_rele_inds', all_rele_inds)
+    all_rele_inds = np.greater(batch_label, 0).nonzero()[0]  # due to one-dimension
+    # print('all_rele_inds', all_rele_inds)
     num_rele = all_rele_inds.shape[0]
-    #print('num_rele', num_rele)
+    # print('num_rele', num_rele)
 
-    num_to_mask = int(num_rele*mask_ratio)
+    num_to_mask = int(num_rele * mask_ratio)
     mask_inds = np.random.choice(num_rele, size=num_to_mask, replace=False)
-    #print('mask_inds', mask_inds)
+    # print('mask_inds', mask_inds)
 
     rele_inds_to_mask = all_rele_inds[mask_inds]
-    #print('rele_inds_to_mask', rele_inds_to_mask)sss
+    # print('rele_inds_to_mask', rele_inds_to_mask)sss
 
     batch_label[rele_inds_to_mask] = mask_value
 
-    if np.greater(batch_label, 0.0).any(): # whether the masked one includes explicit positive labels
+    if np.greater(batch_label, 0.0).any():  # whether the masked one includes explicit positive labels
         return batch_label
     else:
         return None
+
 
 #######################
 # Masking Application #
@@ -971,13 +1020,13 @@ def random_mask_all_labels(batch_ranking, batch_label, mask_ratio, mask_value=0,
     '''
 
     size_ranking = batch_label.size(1)
-    num_to_mask = int(size_ranking*mask_ratio)
+    num_to_mask = int(size_ranking * mask_ratio)
     mask_ind = np.random.choice(size_ranking, size=num_to_mask, replace=False)
     ind_num_rele = list(range(3))
     batch_label[:, mask_ind] = random.choices(ind_num_rele, weights=[0.5, 0.35, 0.15], k=1)[0]
 
-    if torch.gt(batch_label, torch_zero).any(): # whether the masked one includes explicit positive labels
-        if presort: # re-sort according to the labels if required
+    if torch.gt(batch_label, torch_zero).any():  # whether the masked one includes explicit positive labels
+        if presort:  # re-sort according to the labels if required
             std_labels = torch.squeeze(batch_label)
             sorted_labels, sorted_inds = torch.sort(std_labels, descending=True)
 
@@ -1000,7 +1049,7 @@ def random_mask_rele_labels(batch_ranking, batch_label=None, mask_ratio=None, ma
     :return:
     '''
 
-    assert 1 == batch_label.size(0) # todo for larger batch-size, need to per-dimension masking
+    assert 1 == batch_label.size(0)  # todo for larger batch-size, need to per-dimension masking
 
     # squeeze for easy process
     docs, labels = torch.squeeze(batch_ranking, dim=0), torch.squeeze(batch_label)
@@ -1008,15 +1057,16 @@ def random_mask_rele_labels(batch_ranking, batch_label=None, mask_ratio=None, ma
     all_rele_inds = torch.gt(labels, torch_zero).nonzero()
     num_rele = all_rele_inds.size()[0]
 
-    num_to_mask = int(num_rele*mask_ratio)
+    num_to_mask = int(num_rele * mask_ratio)
     mask_inds = np.random.choice(num_rele, size=num_to_mask, replace=False)
 
-    rele_inds_to_mask = all_rele_inds[mask_inds, 0] # the 0-column corresponds to original rele index since all_rele_inds.size()=(num_rele, 1)
+    rele_inds_to_mask = all_rele_inds[
+        mask_inds, 0]  # the 0-column corresponds to original rele index since all_rele_inds.size()=(num_rele, 1)
 
     batch_label[:, rele_inds_to_mask] = mask_value
 
-    if torch.gt(batch_label, torch_zero).any(): # whether the masked one includes explicit positive labels
-        if presort: # re-sort according to the labels if required
+    if torch.gt(batch_label, torch_zero).any():  # whether the masked one includes explicit positive labels
+        if presort:  # re-sort according to the labels if required
             std_labels = torch.squeeze(batch_label)
             sorted_labels, sorted_inds = torch.sort(std_labels, descending=True)
 
@@ -1034,13 +1084,13 @@ def np_random_mask_all_labels(batch_label, mask_ratio, mask_value=0):
     Mask the ground-truth labels with the specified ratio as '0'.
     '''
     size_ranking = len(batch_label)
-    num_to_mask = int(size_ranking*mask_ratio)
+    num_to_mask = int(size_ranking * mask_ratio)
     mask_ind = np.random.choice(size_ranking, size=num_to_mask, replace=False)
 
     ind_num_rele = list(range(3))
-    batch_label[:, mask_ind] = random.choices(ind_num_rele,weights=[0.5,0.35,0.15],k=1)[0]
+    batch_label[:, mask_ind] = random.choices(ind_num_rele, weights=[0.5, 0.35, 0.15], k=1)[0]
 
-    if np.greater(batch_label, 0.0).any(): # whether the masked one includes explicit positive labels
+    if np.greater(batch_label, 0.0).any():  # whether the masked one includes explicit positive labels
         return batch_label
     else:
         return None
@@ -1050,21 +1100,21 @@ def np_random_mask_rele_labels(batch_label, mask_ratio, mask_value=0):
     '''
     Mask the ground-truth labels with the specified ratio as '0'.
     '''
-    all_rele_inds = np.greater(batch_label, 0).nonzero()[0] # due to one-dimension
-    #print('all_rele_inds', all_rele_inds)
+    all_rele_inds = np.greater(batch_label, 0).nonzero()[0]  # due to one-dimension
+    # print('all_rele_inds', all_rele_inds)
     num_rele = all_rele_inds.shape[0]
-    #print('num_rele', num_rele)
+    # print('num_rele', num_rele)
 
-    num_to_mask = int(num_rele*mask_ratio)
+    num_to_mask = int(num_rele * mask_ratio)
     mask_inds = np.random.choice(num_rele, size=num_to_mask, replace=False)
-    #print('mask_inds', mask_inds)
+    # print('mask_inds', mask_inds)
 
     rele_inds_to_mask = all_rele_inds[mask_inds]
-    #print('rele_inds_to_mask', rele_inds_to_mask)sss
+    # print('rele_inds_to_mask', rele_inds_to_mask)sss
 
     batch_label[rele_inds_to_mask] = mask_value
 
-    if np.greater(batch_label, 0.0).any(): # whether the masked one includes explicit positive labels
+    if np.greater(batch_label, 0.0).any():  # whether the masked one includes explicit positive labels
         return batch_label
     else:
         return None

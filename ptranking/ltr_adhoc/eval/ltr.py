@@ -138,7 +138,7 @@ class LTREvaluator():
         file_train, file_vali, file_test = self.determine_files(data_dict, fold_k=fold_k)
 
         train_batch_size, train_presort = data_dict['train_batch_size'], data_dict['train_presort']
-        input_eval_dict = eval_dict if eval_dict['mask_label'] else None # required when enabling masking data
+        input_eval_dict = eval_dict if (eval_dict['mask_label'] | eval_dict['noise_label']) else None # required when enabling masking data
         train_data = LTRDataset(file=file_train, split_type=SPLIT_TYPE.Train, batch_size=train_batch_size,
                                 shuffle=True, presort=train_presort, data_dict=data_dict, eval_dict=input_eval_dict)
 
@@ -474,7 +474,7 @@ class LTREvaluator():
         return self.eval_setting.default_setting()
 
     def iterate_eval_setting(self):
-        return self.eval_setting.grid_search()
+        return self.eval_setting.grid_search
 
     def set_scoring_function_setting(self, sf_json=None, debug=None, data_dict=None):
         if sf_json is not None:
