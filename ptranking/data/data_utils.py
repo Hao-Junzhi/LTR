@@ -842,23 +842,7 @@ def load_letor_data_as_libsvm_data(in_file, split_type=None, data_id=None, min_d
 #######################
 torch_zero = torch.FloatTensor([0.0])
 
-def np_random_noise_all_labels(batch_label, mask_ratio,weights = [0.5,0.35,0.15]):
-    '''
-    Mask the ground-truth labels with the specified ratio as '0'.
-    '''
-    size_ranking = len(batch_label)
-    num_to_mask = int(size_ranking*mask_ratio)
-    mask_ind = np.random.choice(size_ranking, size=num_to_mask, replace=False)
-
-    ind_num_rele = list(range(3))
-    batch_label[:, mask_ind] = random.choices(ind_num_rele,weights ,k=1)[0]
-
-    if np.greater(batch_label, 0.0).any(): # whether the masked one includes explicit positive labels
-        return batch_label
-    else:
-        return None
-
-def random_addn_all_labels(batch_ranking, batch_label, mask_ratio, mask_value=0, presort=False):
+def Discrete_noise_all_labels(batch_ranking, batch_label, mask_ratio, mask_value=0, presort=False):
     '''
     Mask the ground-truth labels with the specified ratio as '0'. Meanwhile, re-sort according to the labels if required.
     :param doc_reprs:
@@ -872,9 +856,8 @@ def random_addn_all_labels(batch_ranking, batch_label, mask_ratio, mask_value=0,
     size_ranking = batch_label.size(1)
     num_to_mask = int(size_ranking*mask_ratio)
     mask_ind = np.random.choice(size_ranking, size=num_to_mask, replace=False)
-    ind_num_rele = list(range(6))
-    batch_label[:, mask_ind] = random.choices(ind_num_rele,weights=[0.5,0.19,0.15,0.1,0.05,0.01],size=1)[0]
-
+    ind_num_rele = list(range(3))
+    batch_label[:, mask_ind] = random.choices(ind_num_rele, weights=[0.5, 0.35, 0.15], k=1)[0]
 
     if torch.gt(batch_label, torch_zero).any(): # whether the masked one includes explicit positive labels
         if presort: # re-sort according to the labels if required
@@ -885,6 +868,87 @@ def random_addn_all_labels(batch_ranking, batch_label, mask_ratio, mask_value=0,
             batch_ranking = batch_ranking[:, sorted_inds, :]
 
         return batch_ranking, batch_label
+    else:
+        return None
+
+
+def Discrete_noise_rele_labels(batch_ranking, batch_label=None, mask_ratio=None, mask_value=0, presort=False):
+    '''
+    Mask the ground-truth labels with the specified ratio as '0'. Meanwhile, re-sort according to the labels if required.
+    :param doc_reprs:
+    :param doc_labels:
+    :param mask_ratio: the ratio of labels to be masked
+    :param mask_value:
+    :param presort:
+    :return:
+    '''
+
+    assert 1 == batch_label.size(0) # todo for larger batch-size, need to per-dimension masking
+
+    # squeeze for easy process
+    docs, labels = torch.squeeze(batch_ranking, dim=0), torch.squeeze(batch_label)
+
+    all_rele_inds = torch.gt(labels, torch_zero).nonzero()
+    num_rele = all_rele_inds.size()[0]
+
+    num_to_mask = int(num_rele*mask_ratio)
+    mask_inds = np.random.choice(num_rele, size=num_to_mask, replace=False)
+
+    rele_inds_to_mask = all_rele_inds[mask_inds, 0] # the 0-column corresponds to original rele index since all_rele_inds.size()=(num_rele, 1)
+
+    batch_label[:, rele_inds_to_mask] = mask_value
+
+    if torch.gt(batch_label, torch_zero).any(): # whether the masked one includes explicit positive labels
+        if presort: # re-sort according to the labels if required
+            std_labels = torch.squeeze(batch_label)
+            sorted_labels, sorted_inds = torch.sort(std_labels, descending=True)
+
+            batch_label = torch.unsqueeze(sorted_labels, dim=0)
+            batch_ranking = batch_ranking[:, sorted_inds, :]
+
+        return batch_ranking, batch_label
+    else:
+        # only supports enough rele labels
+        raise NotImplementedError
+
+
+def np_discrete_noise_all_labels(batch_label, mask_ratio, mask_value=0):
+    '''
+    Mask the ground-truth labels with the specified ratio as '0'.
+    '''
+    size_ranking = len(batch_label)
+    num_to_mask = int(size_ranking*mask_ratio)
+    mask_ind = np.random.choice(size_ranking, size=num_to_mask, replace=False)
+
+    ind_num_rele = list(range(3))
+    batch_label[:, mask_ind] = random.choices(ind_num_rele,weights=[0.5,0.35,0.15],k=1)[0]
+
+    if np.greater(batch_label, 0.0).any(): # whether the masked one includes explicit positive labels
+        return batch_label
+    else:
+        return None
+
+
+def np_discrete_noise_rele_labels(batch_label, mask_ratio, mask_value=0):
+    '''
+    Mask the ground-truth labels with the specified ratio as '0'.
+    '''
+    all_rele_inds = np.greater(batch_label, 0).nonzero()[0] # due to one-dimension
+    #print('all_rele_inds', all_rele_inds)
+    num_rele = all_rele_inds.shape[0]
+    #print('num_rele', num_rele)
+
+    num_to_mask = int(num_rele*mask_ratio)
+    mask_inds = np.random.choice(num_rele, size=num_to_mask, replace=False)
+    #print('mask_inds', mask_inds)
+
+    rele_inds_to_mask = all_rele_inds[mask_inds]
+    #print('rele_inds_to_mask', rele_inds_to_mask)sss
+
+    batch_label[rele_inds_to_mask] = mask_value
+
+    if np.greater(batch_label, 0.0).any(): # whether the masked one includes explicit positive labels
+        return batch_label
     else:
         return None
 
