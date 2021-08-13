@@ -84,6 +84,10 @@ class MASK_TYPE(Enum):
     rand_mask_all = auto()
     rand_mask_rele = auto()
 
+@unique
+class NOISE_TYPE(Enum):
+    discrete_noise_all = auto()
+    discrete_noise_rele = auto()
 
 @unique
 class LABEL_TYPE(Enum):
@@ -645,7 +649,6 @@ class LTRDataset(data.Dataset):
             else:
                 mask_label = False
                 noise_label = False
-
             if os.path.exists(torch_perquery_file):
                 print('loading buffered file ...')
                 self.list_torch_Qs = pickle_load(torch_perquery_file)
@@ -684,6 +687,8 @@ class LTRDataset(data.Dataset):
                         torch_batch_std_labels = torch.from_numpy(doc_labels).type(torch.FloatTensor)
                         torch_batch_std_labels = torch.unsqueeze(torch_batch_std_labels, dim=0)
 
+
+
                         if mask_label:  # masking
                             if MASK_TYPE[mask_type] == MASK_TYPE.rand_mask_rele:
                                 torch_batch_rankings, torch_batch_std_labels = random_mask_rele_labels(
@@ -701,6 +706,22 @@ class LTRDataset(data.Dataset):
                                     continue
                             else:
                                 raise NotImplementedError
+                        elif noise_label: # add noise
+                            if NOISE_TYPE[noise_type] == NOISE_TYPE.discrete_noise_rele:
+                                torch_batch_rankings, torch_batch_std_labels = discrete_noise_rele_labels(
+                                    batch_ranking=torch_batch_rankings, batch_label=torch_batch_std_labels,
+                                    noise_ratio = noise_ratio , presort=self.presort)
+
+                            elif NOISE_TYPE[noise_type] == NOISE_TYPE.discrete_noise_all:
+                                torch_batch_rankings, torch_batch_std_labels = discrete_noise_rele_labels(
+                                    batch_ranking=torch_batch_rankings, batch_label=torch_batch_std_labels,
+                                    noise_ratio = noise_ratio, presort=self.presort)
+                                if masked_res is not None:
+                                    torch_batch_rankings, torch_batch_std_labels = masked_res
+
+                                else:
+                                    continue
+
                     if hot:
                         assert mask_label is not True  # not supported since it is rarely used.
                         max_rele_level = data_dict['max_rele_level']
@@ -889,22 +910,21 @@ def load_letor_data_as_libsvm_data(in_file, split_type=None, data_id=None, min_d
 torch_zero = torch.FloatTensor([0.0])
 
 
-def discrete_noise_all_labels(batch_ranking, batch_label, mask_ratio, mask_value=0, presort=False):
+def discrete_noise_all_labels(batch_ranking, batch_label, noise_ratio, presort=False):
     '''
     Mask the ground-truth labels with the specified ratio as '0'. Meanwhile, re-sort according to the labels if required.
     :param doc_reprs:
     :param doc_labels:
-    :param mask_ratio: the ratio of labels to be masked
-    :param mask_value:
+    :param noise_ratio: the ratio of labels to be added noise
     :param presort:
     :return:
     '''
 
     size_ranking = batch_label.size(1)
-    num_to_mask = int(size_ranking * mask_ratio)
-    mask_ind = np.random.choice(size_ranking, size=num_to_mask, replace=False)
+    num_to_noise = int(size_ranking * noise_ratio)
+    noise_ind = np.random.choice(size_ranking, size= num_to_noise, replace=False)
     ind_num_rele = list(range(3))
-    batch_label[:, mask_ind] = random.choices(ind_num_rele, weights=[0.5, 0.35, 0.15], k=1)[0]
+    batch_label[:, noise_ind] = random.choices(ind_num_rele, weights=[0.5, 0.35, 0.15], k=1)[0]
 
     if torch.gt(batch_label, torch_zero).any():  # whether the masked one includes explicit positive labels
         if presort:  # re-sort according to the labels if required
@@ -919,7 +939,7 @@ def discrete_noise_all_labels(batch_ranking, batch_label, mask_ratio, mask_value
         return None
 
 
-def discrete_noise_rele_labels(batch_ranking, batch_label=None, mask_ratio=None, mask_value=0, presort=False):
+def discrete_noise_rele_labels(batch_ranking, batch_label=None, noise_ratio=None, presort=False):
     '''
     Mask the ground-truth labels with the specified ratio as '0'. Meanwhile, re-sort according to the labels if required.
     :param doc_reprs:
@@ -929,6 +949,7 @@ def discrete_noise_rele_labels(batch_ranking, batch_label=None, mask_ratio=None,
     :param presort:
     :return:
     '''
+    raise NotImplementedError('未完成discrete的noise的rele模块')
 
     assert 1 == batch_label.size(0)  # todo for larger batch-size, need to per-dimension masking
 
@@ -960,16 +981,14 @@ def discrete_noise_rele_labels(batch_ranking, batch_label=None, mask_ratio=None,
         raise NotImplementedError
 
 
-def np_discrete_noise_all_labels(batch_label, mask_ratio, mask_value=0):
-    '''
-    Mask the ground-truth labels with the specified ratio as '0'.
-    '''
+def np_discrete_noise_all_labels(batch_label, noise_ratio):
+
     size_ranking = len(batch_label)
-    num_to_mask = int(size_ranking * mask_ratio)
-    mask_ind = np.random.choice(size_ranking, size=num_to_mask, replace=False)
+    num_to_mask = int(size_ranking * noise_ratio)
+    noise_ind = np.random.choice(size_ranking, size=num_to_mask, replace=False)
 
     ind_num_rele = list(range(3))
-    batch_label[:, mask_ind] = random.choices(ind_num_rele, weights=[0.5, 0.35, 0.15], k=1)[0]
+    batch_label[:, noise_ind] = random.choices(ind_num_rele, weights=[0.5, 0.35, 0.15], k=1)[0]
 
     if np.greater(batch_label, 0.0).any():  # whether the masked one includes explicit positive labels
         return batch_label
