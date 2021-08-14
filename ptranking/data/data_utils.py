@@ -183,6 +183,7 @@ def get_data_meta(data_id=None):
 
 def get_scaler(scaler_id):
     """ Initialize the scaler-object correspondingly """
+    global scaler
     assert scaler_id in SCALER_ID
     if scaler_id == 'MinMaxScaler':
         scaler = MinMaxScaler()
@@ -326,6 +327,7 @@ def iter_lines(lines, has_targets=True, one_indexed=True, missing=0.0, has_comme
     qid : object Query id of the sample. This is currently guaranteed to be a string.
     comment : str Comment accompanying the sample.
     """
+    global comment
     for line in lines:
         # print(line)
         if has_comment:
@@ -384,6 +386,7 @@ def parse_letor(source, has_targets=True, one_indexed=True, missing=0.0, has_com
     qids : array of objects Query id vector (see `iter_lines`).
     comments : array of strs Comment vector (see `iter_lines`).
     """
+    global comments
     max_width = 0
     feature_vecs, std_scores, qids = [], [], []
     if has_comment:
@@ -465,6 +468,7 @@ def iter_queries(in_file, presort=None, data_dict=None, scale_data=None, scaler_
     :param unknown_as_zero: if not labled, regard the relevance degree as zero
     :return:
     '''
+    global scaler, scaler
     assert presort is not None
     if os.path.exists(perquery_file): return pickle_load(perquery_file)
 
@@ -598,6 +602,7 @@ class LTRDataset(data.Dataset):
 
     def __init__(self, split_type, file, data_id=None, data_dict=None, eval_dict=None, batch_size=1, presort=False,
                  shuffle=False, hot=False, buffer=True):
+        global noise_type, masked_res, masked_res, noise_ratio, mask_ratio, mask_type
         assert data_id is not None or data_dict is not None
         if data_dict is None: data_dict = self.get_default_data_dict(data_id=data_id)
 
@@ -713,14 +718,9 @@ class LTRDataset(data.Dataset):
                                     noise_ratio = noise_ratio , presort=self.presort)
 
                             elif NOISE_TYPE[noise_type] == NOISE_TYPE.discrete_noise_all:
-                                torch_batch_rankings, torch_batch_std_labels = discrete_noise_rele_labels(
+                                torch_batch_rankings, torch_batch_std_labels = discrete_noise_all_labels(
                                     batch_ranking=torch_batch_rankings, batch_label=torch_batch_std_labels,
-                                    noise_ratio = noise_ratio, presort=self.presort)
-                                if masked_res is not None:
-                                    torch_batch_rankings, torch_batch_std_labels = masked_res
-
-                                else:
-                                    continue
+                                    noise_ratio = noise_ratio, presort= False)
 
                     if hot:
                         assert mask_label is not True  # not supported since it is rarely used.
@@ -786,6 +786,7 @@ class LTRDataset(data.Dataset):
 def get_buffer_file_name_libsvm(in_file, data_id=None, eval_dict=None, need_group=True):
     """ get absolute paths of data file and group file """
 
+    global file_buffered_group, file_buffered_group
     if data_id in MSLETOR or data_id in MSLRWEB:
         buffer_prefix = in_file.replace('Fold', 'BufferedFold')
         file_buffered_data = buffer_prefix.replace('txt', 'data')
@@ -838,6 +839,7 @@ def load_letor_data_as_libsvm_data(in_file, split_type=None, data_id=None, min_d
     :param need_group: required w.r.t. xgboost, lightgbm
     :return:
     """
+    global output_group, output_group, output_group, file_buffered_group, file_buffered_group
     assert data_id is not None or data_dict is not None
     if data_dict is None:
         scale_data, scaler_id, scaler_level = get_scaler_setting(data_id=data_id, scaler_id=scaler_id)
@@ -919,25 +921,69 @@ def discrete_noise_all_labels(batch_ranking, batch_label, noise_ratio, presort=F
     :param presort:
     :return:
     '''
-
+    '''
+    数组的每一个对应元素都有相应的random值
+    遍历数组
+    
+    '''
     size_ranking = batch_label.size(1)
     num_to_noise = int(size_ranking * noise_ratio)
     noise_ind = np.random.choice(size_ranking, size= num_to_noise, replace=False)
     ind_num_rele = list(range(3))
-    batch_label[:, noise_ind] = random.choices(ind_num_rele, weights=[0.5, 0.35, 0.15], k=1)[0]
-
+    print(batch_label)
+    for noise_ind_iter in noise_ind:
+        batch_label[:, noise_ind_iter] = random.choices(ind_num_rele, weights=[0.5, 0.35, 0.15], k=1)[0]
+    print(batch_label)
     if torch.gt(batch_label, torch_zero).any():  # whether the masked one includes explicit positive labels
         if presort:  # re-sort according to the labels if required
+            raise TypeError('presort module not available')
             std_labels = torch.squeeze(batch_label)
             sorted_labels, sorted_inds = torch.sort(std_labels, descending=True)
 
             batch_label = torch.unsqueeze(sorted_labels, dim=0)
             batch_ranking = batch_ranking[:, sorted_inds, :]
-
         return batch_ranking, batch_label
     else:
-        return None
+        print('有全零样本的batch_label')
+        # raise TypeError('All batch_labels are {}'.format(batch_label))
+        return batch_ranking,batch_label
 
+
+def uniform_noise_all_labels(batch_ranking, batch_label, noise_ratio, presort=False):
+    '''
+    Mask the ground-truth labels with the specified ratio as '0'. Meanwhile, re-sort according to the labels if required.
+    :param doc_reprs:
+    :param doc_labels:
+    :param noise_ratio: the ratio of labels to be added noise
+    :param presort:
+    :return:
+    '''
+    '''
+    数组的每一个对应元素都有相应的random值
+    遍历数组
+
+    '''
+    size_ranking = batch_label.size(1)
+    num_to_noise = int(size_ranking * noise_ratio)
+    noise_ind = np.random.choice(size_ranking, size=num_to_noise, replace=False)
+    ind_num_rele = list(range(3))
+    print(batch_label)
+    for noise_ind_iter in noise_ind:
+        batch_label[:, noise_ind_iter] = random.choices(ind_num_rele, k=1)[0]
+    print(batch_label)
+    if torch.gt(batch_label, torch_zero).any():  # whether the masked one includes explicit positive labels
+        if presort:  # re-sort according to the labels if required
+            raise TypeError('presort module not available')
+            std_labels = torch.squeeze(batch_label)
+            sorted_labels, sorted_inds = torch.sort(std_labels, descending=True)
+
+            batch_label = torch.unsqueeze(sorted_labels, dim=0)
+            batch_ranking = batch_ranking[:, sorted_inds, :]
+        return batch_ranking, batch_label
+    else:
+        print('有全零样本的batch_label')
+        # raise TypeError('All batch_labels are {}'.format(batch_label))
+        return batch_ranking, batch_label
 
 def discrete_noise_rele_labels(batch_ranking, batch_label=None, noise_ratio=None, presort=False):
     '''
