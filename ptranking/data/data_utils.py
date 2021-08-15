@@ -88,6 +88,7 @@ class MASK_TYPE(Enum):
 class NOISE_TYPE(Enum):
     discrete_noise_all = auto()
     discrete_noise_rele = auto()
+    uniform_noise_all = auto()
 
 @unique
 class LABEL_TYPE(Enum):
@@ -461,12 +462,12 @@ def iter_queries(in_file, presort=None, data_dict=None, scale_data=None, scaler_
     '''
     Transforms an iterator of rows to an iterator of queries (i.e., a unit of all the documents and labels associated
     with the same query). Each query is represented by a (qid, feature_mat, std_label_vec) tuple.
-    :param in_file:
-    :param has_comment:
-    :param query_level_scale: perform query-level scaling, say normalization
-    :param scaler: MinMaxScaler | RobustScaler
-    :param unknown_as_zero: if not labled, regard the relevance degree as zero
-    :return:
+    param in_file:
+    param has_comment:
+    param query_level_scale: perform query-level scaling, say normalization
+    param scaler: MinMaxScaler | RobustScaler
+    param unknown_as_zero: if not labled, regard the relevance degree as zero
+    return:
     '''
     global scaler, scaler
     assert presort is not None
@@ -602,7 +603,6 @@ class LTRDataset(data.Dataset):
 
     def __init__(self, split_type, file, data_id=None, data_dict=None, eval_dict=None, batch_size=1, presort=False,
                  shuffle=False, hot=False, buffer=True):
-        global noise_type, masked_res, masked_res, noise_ratio, mask_ratio, mask_type
         assert data_id is not None or data_dict is not None
         if data_dict is None: data_dict = self.get_default_data_dict(data_id=data_id)
 
@@ -721,6 +721,10 @@ class LTRDataset(data.Dataset):
                                 torch_batch_rankings, torch_batch_std_labels = discrete_noise_all_labels(
                                     batch_ranking=torch_batch_rankings, batch_label=torch_batch_std_labels,
                                     noise_ratio = noise_ratio, presort= False)
+                            elif NOISE_TYPE[noise_type] == NOISE_TYPE.uniform_noise_all:
+                                torch_batch_rankings, torch_batch_std_labels = uniform_noise_all_labels(
+                                    batch_ranking=torch_batch_rankings, batch_label=torch_batch_std_labels,
+                                    noise_ratio=noise_ratio, presort=False)
 
                     if hot:
                         assert mask_label is not True  # not supported since it is rarely used.
@@ -921,27 +925,21 @@ def discrete_noise_all_labels(batch_ranking, batch_label, noise_ratio, presort=F
     :param presort:
     :return:
     '''
-    '''
-    数组的每一个对应元素都有相应的random值
-    遍历数组
-    
-    '''
+
     size_ranking = batch_label.size(1)
     num_to_noise = int(size_ranking * noise_ratio)
     noise_ind = np.random.choice(size_ranking, size= num_to_noise, replace=False)
     ind_num_rele = list(range(3))
-    print(batch_label)
     for noise_ind_iter in noise_ind:
         batch_label[:, noise_ind_iter] = random.choices(ind_num_rele, weights=[0.5, 0.35, 0.15], k=1)[0]
-    print(batch_label)
     if torch.gt(batch_label, torch_zero).any():  # whether the masked one includes explicit positive labels
         if presort:  # re-sort according to the labels if required
             raise TypeError('presort module not available')
-            std_labels = torch.squeeze(batch_label)
-            sorted_labels, sorted_inds = torch.sort(std_labels, descending=True)
+            # std_labels = torch.squeeze(batch_label)
+            # sorted_labels, sorted_inds = torch.sort(std_labels, descending=True)
 
-            batch_label = torch.unsqueeze(sorted_labels, dim=0)
-            batch_ranking = batch_ranking[:, sorted_inds, :]
+            # batch_label = torch.unsqueeze(sorted_labels, dim=0)
+            # batch_ranking = batch_ranking[:, sorted_inds, :]
         return batch_ranking, batch_label
     else:
         print('有全零样本的batch_label')
@@ -958,27 +956,22 @@ def uniform_noise_all_labels(batch_ranking, batch_label, noise_ratio, presort=Fa
     :param presort:
     :return:
     '''
-    '''
-    数组的每一个对应元素都有相应的random值
-    遍历数组
 
-    '''
     size_ranking = batch_label.size(1)
     num_to_noise = int(size_ranking * noise_ratio)
     noise_ind = np.random.choice(size_ranking, size=num_to_noise, replace=False)
     ind_num_rele = list(range(3))
-    print(batch_label)
     for noise_ind_iter in noise_ind:
-        batch_label[:, noise_ind_iter] = random.choices(ind_num_rele, k=1)[0]
-    print(batch_label)
+        re_ind_num_rele = ind_num_rele.copy()
+        re_ind_num_rele.remove(batch_label[:, noise_ind_iter])
+        batch_label[:, noise_ind_iter] = random.choices(re_ind_num_rele , k=1)[0]
     if torch.gt(batch_label, torch_zero).any():  # whether the masked one includes explicit positive labels
         if presort:  # re-sort according to the labels if required
             raise TypeError('presort module not available')
-            std_labels = torch.squeeze(batch_label)
-            sorted_labels, sorted_inds = torch.sort(std_labels, descending=True)
-
-            batch_label = torch.unsqueeze(sorted_labels, dim=0)
-            batch_ranking = batch_ranking[:, sorted_inds, :]
+            # std_labels = torch.squeeze(batch_label)
+            # sorted_labels, sorted_inds = torch.sort(std_labels, descending=True)
+            # batch_label = torch.unsqueeze(sorted_labels, dim=0)
+            # batch_ranking = batch_ranking[:, sorted_inds, :]
         return batch_ranking, batch_label
     else:
         print('有全零样本的batch_label')
