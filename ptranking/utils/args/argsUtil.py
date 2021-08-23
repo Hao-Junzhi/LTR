@@ -4,6 +4,7 @@
 
 """Description
 Class for parsing command-line input
+获取参数
 """
 
 import argparse
@@ -34,5 +35,5 @@ class ArgsUtil(object):
     def get_l2r_args(self):
         l2r_args = self.args_parser.parse_args()
         l2r_args = self.update_if_required(l2r_args)
-        return l2r_args
+        return l2r_args # 返回的l2r_args是一个类，属性为各个传入的参数
 

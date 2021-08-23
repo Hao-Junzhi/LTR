@@ -43,7 +43,6 @@ class LTREvaluator():
     """
     def __init__(self, frame_id=LTRFRAME_TYPE.Adhoc, cuda=None):
         self.frame_id = frame_id
-
         if cuda is None:
             self.gpu, self.device = False, 'cpu'
         else:
@@ -102,6 +101,7 @@ class LTREvaluator():
 
     def determine_files(self, data_dict, fold_k=None):
         """
+        返回输入文件的train vali test 路径
         Determine the file path correspondingly.
         :param data_dict:
         :param fold_k:
@@ -128,6 +128,8 @@ class LTREvaluator():
 
     def load_data(self, eval_dict, data_dict, fold_k):
         """
+        建类
+        返回train vali test类
         Load the dataset correspondingly.
         :param eval_dict:
         :param data_dict:
@@ -155,6 +157,7 @@ class LTREvaluator():
 
     def load_ranker(self, sf_para_dict, model_para_dict):
         """
+        这个函数创造排序算法的类
         Load a ranker correspondingly
         :param sf_para_dict:
         :param model_para_dict:
@@ -164,7 +167,7 @@ class LTREvaluator():
         model_id = model_para_dict['model_id']
 
         if model_id in ['RankMSE', 'ListNet', 'RankCosine']:
-            ranker = globals()[model_id](sf_para_dict=sf_para_dict, gpu=self.gpu, device=self.device)
+            ranker = globals()[model_id](sf_para_dict=sf_para_dict, gpu=self.gpu, device=self.device) # ranker 为RankMSE的一个类
 
         elif model_id in ['RankNet', 'ListMLE', 'LambdaRank', 'STListNet', 'ApproxNDCG', 'DirectOpt',
                           'LambdaLoss', 'MarginLambdaLoss']:
@@ -187,14 +190,15 @@ class LTREvaluator():
         :param model_para_dict:
         :return:
         """
-        model_id = self.model_parameter.model_id
+        model_id = self.model_parameter.model_id # TODO 看定义参数的函数
         grid_search, do_vali, dir_output = eval_dict['grid_search'], eval_dict['do_validation'], eval_dict['dir_output']
         mask_label = eval_dict['mask_label']
+        noise_label = eval_dict['noise_label']
 
         if grid_search:
             dir_root = dir_output + '_'.join(['gpu', 'grid', model_id]) + '/' if self.gpu else dir_output + '_'.join(['grid', model_id]) + '/'
         else:
-            dir_root = dir_output
+            dir_root = dir_output # grid_search 网格搜索，是一种自动调参手段 调整方法为穷举
 
         eval_dict['dir_root'] = dir_root
         if not os.path.exists(dir_root): os.makedirs(dir_root)
@@ -204,7 +208,8 @@ class LTREvaluator():
                                   self.eval_setting.to_eval_setting_string()])
         if mask_label:
             data_eval_str = '_'.join([data_eval_str, 'MaskLabel', 'Ratio', '{:,g}'.format(eval_dict['mask_ratio'])])
-
+        elif noise_label:
+            data_eval_str = '_'.join([data_eval_str, 'NoiseLabel', 'Ratio', '{:,g}'.format(eval_dict['noise_ratio'])])
         file_prefix = '_'.join([model_id, 'SF', sf_str, data_eval_str])
 
         if data_dict['scale_data']:
@@ -241,9 +246,10 @@ class LTREvaluator():
         else:
             raise NotImplementedError
 
-        self.dir_run  = self.setup_output(data_dict, eval_dict)
-        if eval_dict['do_log']: sys.stdout = open(self.dir_run + 'log.txt', "w")
-        #if self.do_summary: self.summary_writer = SummaryWriter(self.dir_run + 'summary')
+        self.dir_run = self.setup_output(data_dict, eval_dict)
+        if eval_dict['do_log']:
+            sys.stdout = open(self.dir_run + 'log.txt', "w")
+        # if self.do_summary: self.summary_writer = SummaryWriter(self.dir_run + 'summary')
 
 
     def log_max(self, data_dict=None, max_cv_avg_scores=None, sf_para_dict=None,  eval_dict=None, log_para_str=None):
@@ -301,7 +307,7 @@ class LTREvaluator():
         l2r_cv_avg_scores = np.zeros(len(cutoffs)) # fold average
 
         for fold_k in range(1, fold_num + 1):   # evaluation over k-fold data
-            ranker.reset_parameters()           # reset with the same random initialization
+            ranker.reset_parameters()           # TODO reset with the same random initialization
 
             train_data, test_data, vali_data = self.load_data(eval_dict, data_dict, fold_k)
 
@@ -405,7 +411,12 @@ class LTREvaluator():
         l2r_cv_avg_scores = np.divide(l2r_cv_avg_scores, fold_num)
         eval_prefix = str(fold_num) + '-fold cross validation scores:' if do_vali else str(fold_num) + '-fold average scores:'
         print(model_id, eval_prefix, metric_results_to_string(list_scores=l2r_cv_avg_scores, list_cutoffs=cutoffs))  # print either cv or average performance
-
+        if eval_dict['noise_label']:
+            str_result_noise = 'Noise Type = {} \t Noise ratio = {} \t'.format(eval_dict['noise_type'],eval_dict['noise_ratio'])
+            str_result_count = model_id + eval_prefix + metric_results_to_string(list_scores=l2r_cv_avg_scores, list_cutoffs=cutoffs)
+            str_result = str_result_noise + str_result_count +'\n'
+            with open('C:/Users/Junzhi Hao/result/noise result.txt','a',encoding='utf-8') as open_result:
+                open_result.write(str_result)
         return l2r_cv_avg_scores
 
     def naive_train(self, ranker, eval_dict, train_data=None, test_data=None, vali_data=None):
@@ -559,7 +570,7 @@ class LTREvaluator():
         if dir_json is not None:
             data_eval_sf_json = dir_json + 'Data_Eval_ScoringFunction.json'
             self.set_eval_setting(debug=debug, eval_json=data_eval_sf_json)
-            self.set_data_setting(data_json=data_eval_sf_json)
+            self.set_data_setting(data_json=data_eval_sf_json,data_id=data_id)
             self.set_scoring_function_setting(sf_json=data_eval_sf_json)
             self.set_model_setting(model_id=model_id, dir_json=dir_json)
         else:
@@ -568,7 +579,7 @@ class LTREvaluator():
             self.set_scoring_function_setting(debug=debug)
             self.set_model_setting(debug=debug, model_id=model_id)
 
-        self.declare_global(model_id=model_id)
+        self.declare_global(model_id=model_id) # 非 w开头算法可以忽略
 
         ''' select the best setting through grid search '''
         vali_k, cutoffs = 5, [1, 3, 5, 10, 20, 50]
@@ -598,7 +609,7 @@ class LTREvaluator():
             data_id=None, dir_data=None, dir_output=None, grid_search=False):
         if config_with_json:
             assert dir_json is not None
-            self.grid_run(debug=debug, model_id=model_id, dir_json=dir_json)
+            self.grid_run(debug=debug, model_id=model_id, dir_json=dir_json,data_id=data_id)
         else:
             if grid_search:
                 self.grid_run(debug=debug, model_id=model_id, data_id=data_id, dir_data=dir_data, dir_output=dir_output)

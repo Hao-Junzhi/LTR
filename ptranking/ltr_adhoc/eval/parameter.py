@@ -240,11 +240,7 @@ class EvalSetting(Parameter):
             do_summary = self.json_dict['do_summary']
             loss_guided = self.json_dict['loss_guided']
             mask_label = self.json_dict['mask']['mask_label']
-            mask_type = self.json_dict['mask']['mask_type']
-            mask_ratio = self.json_dict['mask']['mask_ratio']
             noise_label = self.json_dict['noise']['noise_label']
-            noise_type = self.json_dict['noise']['noise_type']
-            noise_ratio = self.json_dict['noise']['noise_ratio']
 
             choice_mask_type = self.json_dict['mask']['mask_type']
             choice_mask_ratio = self.json_dict['mask']['mask_ratio']
@@ -275,16 +271,17 @@ class EvalSetting(Parameter):
         if mask_label:
             for mask_type, mask_ratio in product(choice_mask_type, choice_mask_ratio):
                 mask_dict = dict(mask_type=mask_type, mask_ratio=mask_ratio)
+                noise_dict = dict(noise_type = None, noise_ratio = None)
                 self.eval_dict.update(mask_dict)
+                self.eval_dict.update(noise_dict)
                 yield self.eval_dict
         elif noise_label:
             for noise_type, noise_ratio in product(choice_noise_type, choice_noise_ratio):
                 noise_dict = dict(noise_type = noise_type, noise_ratio = noise_ratio)
+                mask_dict = dict(mask_type = None, mask_ratio = None)
                 self.eval_dict.update(noise_dict)
-            for mask_type, mask_ratio in product(choice_mask_type, choice_mask_ratio):
-                mask_dict = dict(mask_type=mask_type, mask_ratio=mask_ratio)
                 self.eval_dict.update(mask_dict)
-            yield self.eval_dict
+                yield self.eval_dict
         else:
             yield self.eval_dict
 
