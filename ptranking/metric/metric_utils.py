@@ -57,3 +57,16 @@ def metric_results_to_string(list_scores=None, list_cutoffs=None, split_str=', '
     for i in range(len(list_scores)):
         list_str.append('nDCG@{}:{:.4f}'.format(list_cutoffs[i], list_scores[i]))
     return split_str.join(list_str)
+
+def metric_results_to_ap_string(list_scores=None, list_cutoffs=None, split_str=', '):
+    """
+    Convert metric results to a string representation
+    :param list_scores:
+    :param list_cutoffs:
+    :param split_str:
+    :return:
+    """
+    list_str = []
+    for i in range(len(list_scores)):
+        list_str.append('AP@{}:{:.4f}'.format(list_cutoffs[i], list_scores[i]))
+    return split_str.join(list_str)

@@ -102,7 +102,7 @@ def torch_ap_at_ks(batch_sys_sorted_labels, batch_ideal_sorted_labels, ks=None, 
 	need_padding = True if valid_max_cutoff < max(ks) else False
 	used_ks = [k for k in ks if k <= valid_max_cutoff] if need_padding else ks
 	max_cutoff = max(used_ks)
-	inds = torch.from_numpy(np.asarray(used_ks) - 1)
+	inds = np.asarray(used_ks) - 1
 
 	batch_sys_sorted_labels = batch_sys_sorted_labels[:, 0:max_cutoff]
 	batch_bi_sys_sorted_labels = torch.clamp(batch_sys_sorted_labels, min=0, max=1) # binary

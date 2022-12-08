@@ -942,7 +942,7 @@ def discrete_noise_all_labels(batch_ranking, batch_label, noise_ratio, presort=F
             # batch_ranking = batch_ranking[:, sorted_inds, :]
         return batch_ranking, batch_label
     else:
-        print('有全零样本的batch_label')
+        print('Batch_label with all-zero samples')
         # raise TypeError('All batch_labels are {}'.format(batch_label))
         return batch_ranking,batch_label
 

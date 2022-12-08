@@ -15,9 +15,9 @@ import torch
 #from tensorboardX import SummaryWriter
 from ptranking.base.ranker import LTRFRAME_TYPE
 from ptranking.utils.bigdata.BigPickle import pickle_save
-from ptranking.metric.metric_utils import metric_results_to_string
+from ptranking.metric.metric_utils import metric_results_to_string,metric_results_to_ap_string
 from ptranking.data.data_utils import get_data_meta, SPLIT_TYPE, LABEL_TYPE
-from ptranking.ltr_adhoc.eval.eval_utils import ndcg_at_ks, ndcg_at_k
+from ptranking.ltr_adhoc.eval.eval_utils import ndcg_at_ks, ndcg_at_k, map_at_k, map_at_ks
 from ptranking.data.data_utils import LTRDataset, YAHOO_LTR, ISTELLA_LTR, MSLETOR_SEMI, MSLETOR_LIST
 from ptranking.ltr_adhoc.eval.parameter import ModelParameter, DataSetting, EvalSetting, ScoringFunctionParameter
 
@@ -298,13 +298,14 @@ class LTREvaluator():
         fold_num = data_dict['fold_num']
         # for quick access of common evaluation settings
         epochs, loss_guided = eval_dict['epochs'], eval_dict['loss_guided']
-        vali_k, log_step, cutoffs   = eval_dict['vali_k'], eval_dict['log_step'], eval_dict['cutoffs']
+        vali_k, log_step, cutoffs = eval_dict['vali_k'], eval_dict['log_step'], eval_dict['cutoffs']
         do_vali, do_summary = eval_dict['do_validation'], eval_dict['do_summary']
 
         ranker = self.load_ranker(model_para_dict=model_para_dict, sf_para_dict=sf_para_dict)
 
         time_begin = datetime.datetime.now()       # timing
         l2r_cv_avg_scores = np.zeros(len(cutoffs)) # fold average
+        l2r_cv_avg_ap = np.zeros(len(cutoffs))
 
         for fold_k in range(1, fold_num + 1):   # evaluation over k-fold data
             ranker.reset_parameters()           # TODO reset with the same random initialization
@@ -331,6 +332,8 @@ class LTREvaluator():
                         vali_eval_tmp = ndcg_at_k(ranker=ranker, test_data=vali_data, k=vali_k, gpu=self.gpu, device=self.device,
                                                   label_type=self.data_setting.data_dict['label_type'])
                         vali_eval_v = vali_eval_tmp.data.numpy()
+                        curr_vali_map_tmp = map_at_k(ranker=ranker, test_data=vali_data, k=vali_k, gpu=self.gpu, device=self.device)
+                        curr_vali_map = curr_vali_map_tmp.data.numpy()
                         if epoch_k > 1:  # further validation comparison
                             curr_vali_ndcg = vali_eval_v
                             if (curr_vali_ndcg > fold_optimal_ndcgk) or (epoch_k == epochs and curr_vali_ndcg == fold_optimal_ndcgk):  # we need at least a reference, in case all zero
@@ -341,6 +344,8 @@ class LTREvaluator():
                                 ranker.save(dir=self.dir_run + fold_optimal_checkpoint + '/', name='_'.join(['net_params_epoch', str(epoch_k)]) + '.pkl')  # buffer currently optimal model
                             else:
                                 print('\t\t', epoch_k, '- nDCG@{} - '.format(vali_k), curr_vali_ndcg)
+
+                            print('\t\t', epoch_k, '- MAP: -', curr_vali_map)
 
                     if do_summary:  # summarize per-step performance w.r.t. train, test
                         fold_k_epoch_k_train_ndcg_ks = ndcg_at_ks(ranker=ranker, test_data=train_data, ks=cutoffs, gpu=self.gpu, device=self.device,
@@ -396,25 +401,35 @@ class LTREvaluator():
                                             label_type=self.data_setting.data_dict['label_type'])
             fold_ndcg_ks = torch_fold_ndcg_ks.data.numpy()
 
+            torch_fold_map_ks = map_at_ks(ranker=fold_optimal_ranker, test_data=test_data, ks=cutoffs, gpu=self.gpu, device=self.device)
+            fold_map_ks = torch_fold_map_ks.data.numpy()
+
             performance_list = [model_id + ' Fold-' + str(fold_k)]      # fold-wise performance
             for i, co in enumerate(cutoffs):
                 performance_list.append('nDCG@{}:{:.4f}'.format(co, fold_ndcg_ks[i]))
+            for i, co in enumerate(cutoffs):
+                performance_list.append('map@{}:{:.4f}'.format(co, fold_map_ks[i]))
             performance_str = '\t'.join(performance_list)
             print('\t', performance_str)
 
             l2r_cv_avg_scores = np.add(l2r_cv_avg_scores, fold_ndcg_ks) # sum for later cv-performance
+            l2r_cv_avg_ap = np.add(l2r_cv_avg_ap, fold_map_ks)
 
         time_end = datetime.datetime.now()  # overall timing
         elapsed_time_str = str(time_end - time_begin)
         print('Elapsed time:\t', elapsed_time_str + "\n\n")
 
         l2r_cv_avg_scores = np.divide(l2r_cv_avg_scores, fold_num)
+        l2r_cv_avg_ap = np.divide(l2r_cv_avg_ap, fold_num)
         eval_prefix = str(fold_num) + '-fold cross validation scores:' if do_vali else str(fold_num) + '-fold average scores:'
         print(model_id, eval_prefix, metric_results_to_string(list_scores=l2r_cv_avg_scores, list_cutoffs=cutoffs))  # print either cv or average performance
+        eval_prefix_ap = str(fold_num) + '-fold cross validation scores:' if do_vali else str(fold_num) + '-fold average AP:'
+        print(model_id, eval_prefix_ap, metric_results_to_ap_string(list_scores=l2r_cv_avg_ap, list_cutoffs=cutoffs))  # print either cv or AP
         if eval_dict['noise_label']:
             str_result_noise = 'Noise Type = {} \t Noise ratio = {} \t'.format(eval_dict['noise_type'],eval_dict['noise_ratio'])
             str_result_count = model_id + eval_prefix + metric_results_to_string(list_scores=l2r_cv_avg_scores, list_cutoffs=cutoffs)
-            str_result = str_result_noise + str_result_count +'\n'
+            str_result_ap = metric_results_to_ap_string(list_scores=l2r_cv_avg_ap, list_cutoffs=cutoffs)
+            str_result = str_result_noise + str_result_count +'\n'+ str_result_ap + '\n'
             with open('C:/Users/Junzhi Hao/result/noise result.txt','a',encoding='utf-8') as open_result:
                 open_result.write(str_result)
         return l2r_cv_avg_scores
