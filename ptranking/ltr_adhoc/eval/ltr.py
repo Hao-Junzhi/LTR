@@ -95,8 +95,8 @@ class LTREvaluator():
 
         ''' Part-1: network setting '''
 
-        if data_dict['train_batch_size']>1:
-            assert sf_para_dict['one_fits_all']['BN'] == False # a kind of feature normalization
+        #if data_dict['train_batch_size']>1:
+        #    assert sf_para_dict['one_fits_all']['BN'] == False # a kind of feature normalization
 
 
     def determine_files(self, data_dict, fold_k=None):
@@ -145,7 +145,7 @@ class LTREvaluator():
                                 shuffle=True, presort=train_presort, data_dict=data_dict, eval_dict=input_eval_dict)
 
         test_data = LTRDataset(file=file_test, split_type=SPLIT_TYPE.Test, shuffle=False, data_dict=data_dict,
-                               batch_size=data_dict['test_batch_size'])
+                               batch_size=data_dict['test_batch_size'],test_state=True)
 
         if eval_dict['do_validation'] or eval_dict['do_summary']: # vali_data is required
             vali_data = LTRDataset(file=file_vali, split_type=SPLIT_TYPE.Validation, shuffle=False,
@@ -270,7 +270,7 @@ class LTREvaluator():
         presort, label_type = train_data.presort, train_data.label_type
         epoch_loss = torch.cuda.FloatTensor([0.0]) if self.gpu else torch.FloatTensor([0.0])
         for qid, batch_rankings, batch_stds in train_data: # size: _, [batch, ranking_size, num_features], [batch, ranking_size]
-            if self.gpu: batch_rankings, batch_stds = batch_rankings.to(self.device), batch_stds.to(self.device)
+            if self.gpu: batch_stds, batch_rankings  = batch_stds.to(self.device),batch_rankings.to(self.device)
 
             batch_loss, stop_training = ranker.train(batch_rankings, batch_stds, qid=qid, epoch_k=epoch_k, presort=presort, label_type=label_type)
 
@@ -594,7 +594,7 @@ class LTREvaluator():
             self.set_scoring_function_setting(debug=debug)
             self.set_model_setting(debug=debug, model_id=model_id)
 
-        self.declare_global(model_id=model_id) # 非 w开头算法可以忽略
+        self.declare_global(model_id=model_id)
 
         ''' select the best setting through grid search '''
         vali_k, cutoffs = 5, [1, 3, 5, 10, 20, 50]

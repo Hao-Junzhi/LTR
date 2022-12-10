@@ -154,7 +154,7 @@ def check_dataset_statistics(data_id, dir_data, buffer=False):
     else:
         train_dataset = LTRDataset(split_type=SPLIT_TYPE.Train, file=file_train, data_id=data_id, shuffle=False, buffer=buffer)
         vali_dataset =  LTRDataset(split_type=SPLIT_TYPE.Validation, file=file_vali, data_id=data_id, shuffle=False, buffer=buffer)
-        test_dataset =  LTRDataset(split_type=SPLIT_TYPE.Test, file=file_test, data_id=data_id, shuffle=False, buffer=buffer)
+        test_dataset =  LTRDataset(split_type=SPLIT_TYPE.Test, file=file_test, data_id=data_id, shuffle=False, buffer=buffer,test_state=True)
 
         num_queries = train_dataset.__len__() + vali_dataset.__len__() + test_dataset.__len__()
         print('Dataset:\t', data_id)

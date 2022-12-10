@@ -46,6 +46,8 @@ ISTELLA_MAX = 1000000  # As ISTELLA contain extremely large features, e.g., 1.79
 GLTR_LIBSVM = ['LTR_LibSVM', 'LTR_LibSVM_K']
 GLTR_LETOR = ['LETOR', 'LETOR_K']
 
+TREC_LTR = ['TD2003','TD2004']
+
 """
 GLTR refers to General Learning-to-rank, thus
 GLTR_LIBSVM and GLTR_LETOR refer to general learning-to-rank datasets given in the formats of libsvm and LETOR, respectively.
@@ -174,6 +176,12 @@ def get_data_meta(data_id=None):
             has_comment = False
         else:
             has_comment = True
+    elif data_id in TREC_LTR:
+        max_rele_level = 2
+        label_type = LABEL_TYPE.MultiLabel
+        num_features = 44
+        fold_num = 5
+        has_comment = False
     else:
         raise NotImplementedError
 
@@ -292,6 +300,57 @@ def get_buffer_file_name(data_id, file, data_dict, presort=None):
         perquery_file = file[:file.find('.txt')].replace('Fold', 'BufferedFold') + '_' + pq_suffix + res_suffix + '.np'
 
     return perquery_file
+## ---------------------------------------------------- ##
+""" processing on TD2003 datasets """
+
+def iter_lines_TD2003(lines, has_targets=True, one_indexed=True, missing=0.0, has_comment=False):
+    """
+    Transforms an iterator of lines to an iterator of LETOR rows. Each row is represented by a (x, y, qid, comment) tuple.
+    Parameters
+    ----------
+    lines : iterable of lines Lines to parse.
+    has_targets : bool, optional, i.e., the relevance label
+        Whether the file contains targets. If True, will expect the first token  every line to be a real representing
+        the sample's target (i.e. score). If False, will use -1 as a placeholder for all targets.
+    one_indexed : bool, optional, i.e., whether the index of the first feature is 1
+        Whether feature ids are one-indexed. If True, will subtract 1 from each feature id.
+    missing : float, optional
+        Placeholder to use if a feature value is not provided for a sample.
+    Yields
+    ------
+    x : array of floats Feature vector of the sample.
+    y : float Target value (score) of the sample, or -1 if no target was parsed.
+    qid : object Query id of the sample. This is currently guaranteed to be a string.
+    comment : str Comment accompanying the sample.
+    """
+    global comment
+    for line in lines:
+        # print(line)
+        if has_comment:
+            data, _, comment = line.rstrip().partition('#')
+            toks = data.split()
+        else:
+            toks = line.rstrip().split()
+
+        num_features = 44
+        feature_vec = np.repeat(float(0), 44)
+        std_score = -1.0
+        if has_targets:
+            std_score = float(toks[0])
+            toks = toks[1:]
+
+        qid = _parse_qid_tok(toks[0])
+
+        for tok in toks[1:-3]:
+            fid, _, val = tok.partition(':')
+            fid = int(fid)
+            val = float(val)
+            if one_indexed:
+                fid -= 1
+
+            feature_vec[fid] = val
+
+        yield (feature_vec, std_score, qid)
 
 
 ## ---------------------------------------------------- ##
@@ -370,6 +429,41 @@ def iter_lines(lines, has_targets=True, one_indexed=True, missing=0.0, has_comme
         else:
             yield (feature_vec, std_score, qid)
 
+def parse_letor_TREC(source, has_targets=True, one_indexed=True, missing=0.0, has_comment=False):
+    """
+    Parses a LETOR dataset from `source`.
+    Parameters
+    ----------
+    source : string or iterable of lines String, file, or other file-like object to parse.
+    has_targets : bool, optional
+    one_indexed : bool, optional
+    missing : float, optional
+    Returns
+    -------
+    X : array of arrays of floats Feature matrix (see `iter_lines`).
+    y : array of floats Target vector (see `iter_lines`).
+    qids : array of objects Query id vector (see `iter_lines`).
+    comments : array of strs Comment vector (see `iter_lines`).
+    """
+    max_width = 0
+    feature_vecs, std_scores, qids = [], [], []
+
+    it = iter_lines_TD2003(source, has_targets=has_targets, one_indexed=one_indexed, missing=missing, has_comment=has_comment)
+    for f_vec, s, qid in it:
+        feature_vecs.append(f_vec)
+        std_scores.append(s)
+        qids.append(qid)
+        max_width = max(max_width, len(f_vec))
+
+    assert max_width > 0
+    all_features_mat = np.ndarray((len(feature_vecs), max_width), dtype=np.float64)
+    all_features_mat.fill(missing)
+    for i, x in enumerate(feature_vecs):
+        all_features_mat[i, :len(x)] = x
+
+    all_labels_vec = np.array(std_scores)
+
+    return all_features_mat, all_labels_vec, qids
 
 def parse_letor(source, has_targets=True, one_indexed=True, missing=0.0, has_comment=False):
     """
@@ -392,7 +486,6 @@ def parse_letor(source, has_targets=True, one_indexed=True, missing=0.0, has_com
     feature_vecs, std_scores, qids = [], [], []
     if has_comment:
         comments = []
-
     it = iter_lines(source, has_targets=has_targets, one_indexed=one_indexed, missing=missing, has_comment=has_comment)
     if has_comment:
         for f_vec, s, qid, comment in it:
@@ -538,6 +631,8 @@ def iter_queries(in_file, presort=None, data_dict=None, scale_data=None, scaler_
             if data_dict['data_id'] in YAHOO_LTR:
                 all_features_mat, all_labels_vec, qids = parse_letor(file_obj.readlines(), has_comment=False,
                                                                      one_indexed=False)
+            elif data_dict['data_id'] in TREC_LTR:
+                all_features_mat, all_labels_vec, qids = parse_letor_TREC(file_obj.readlines(), has_comment=False)
             else:
                 all_features_mat, all_labels_vec, qids = parse_letor(file_obj.readlines(), has_comment=False)
 
@@ -602,7 +697,7 @@ class LTRDataset(data.Dataset):
     """
 
     def __init__(self, split_type, file, data_id=None, data_dict=None, eval_dict=None, batch_size=1, presort=False,
-                 shuffle=False, hot=False, buffer=True):
+                 shuffle=False, hot=False, buffer=True,test_state = False):
         assert data_id is not None or data_dict is not None
         if data_dict is None: data_dict = self.get_default_data_dict(data_id=data_id)
 
@@ -620,6 +715,7 @@ class LTRDataset(data.Dataset):
 
         if data_dict['data_id'] in MSLETOR or data_dict['data_id'] in MSLRWEB \
                 or data_dict['data_id'] in YAHOO_LTR or data_dict['data_id'] in YAHOO_LTR_5Fold \
+                or data_dict['data_id'] in TREC_LTR \
                 or data_dict['data_id'] in ISTELLA_LTR \
                 or data_dict['data_id'] == 'IRGAN_MQ2008_Semi':  # supported datasets
 
@@ -694,37 +790,44 @@ class LTRDataset(data.Dataset):
 
 
 
-                        if mask_label:  # masking
-                            if MASK_TYPE[mask_type] == MASK_TYPE.rand_mask_rele:
-                                torch_batch_rankings, torch_batch_std_labels = random_mask_rele_labels(
-                                    batch_ranking=torch_batch_rankings, batch_label=torch_batch_std_labels,
-                                    mask_ratio=mask_ratio, mask_value=0, presort=self.presort)
+                    if mask_label:  # masking
+                        if MASK_TYPE[mask_type] == MASK_TYPE.rand_mask_rele:
+                            torch_batch_rankings, torch_batch_std_labels = random_mask_rele_labels(
+                                batch_ranking=torch_batch_rankings, batch_label=torch_batch_std_labels,
+                                mask_ratio= mask_ratio, mask_value=0, presort=self.presort)
 
-                            elif MASK_TYPE[mask_type] == MASK_TYPE.rand_mask_all:
-                                masked_res = random_mask_all_labels(batch_ranking=torch_batch_rankings,
-                                                                    batch_label=torch_batch_std_labels,
-                                                                    mask_ratio=mask_ratio, mask_value=0,
-                                                                    presort=self.presort)
-                                if masked_res is not None:
-                                    torch_batch_rankings, torch_batch_std_labels = masked_res
-                                else:
-                                    continue
+                        elif MASK_TYPE[mask_type] == MASK_TYPE.rand_mask_all:
+                            masked_res = random_mask_all_labels(batch_ranking=torch_batch_rankings,
+                                                                batch_label=torch_batch_std_labels,
+                                                                mask_ratio=mask_ratio, mask_value=0,
+                                                                presort=self.presort)
+                            if masked_res is not None:
+                                torch_batch_rankings, torch_batch_std_labels = masked_res
                             else:
-                                raise NotImplementedError
-                        elif noise_label: # add noise
-                            if NOISE_TYPE[noise_type] == NOISE_TYPE.discrete_noise_rele:
-                                torch_batch_rankings, torch_batch_std_labels = discrete_noise_rele_labels(
-                                    batch_ranking=torch_batch_rankings, batch_label=torch_batch_std_labels,
-                                    noise_ratio = noise_ratio , presort=self.presort)
+                                continue
+                        else:
+                            raise NotImplementedError
+                    if noise_label and test_state == False: # add noise
+                        if data_dict['data_id'] in TREC_LTR:
+                            labels_num = 2
+                        elif data_dict['data_id'] in MSLETOR:
+                            labels_num = 3
+                        elif data_dict['data_id'] in MSLRWEB:
+                            labels_num = 5
+                        else:
+                            raise ValueError
 
-                            elif NOISE_TYPE[noise_type] == NOISE_TYPE.discrete_noise_all:
-                                torch_batch_rankings, torch_batch_std_labels = discrete_noise_all_labels(
-                                    batch_ranking=torch_batch_rankings, batch_label=torch_batch_std_labels,
-                                    noise_ratio = noise_ratio, presort= False)
-                            elif NOISE_TYPE[noise_type] == NOISE_TYPE.uniform_noise_all:
-                                torch_batch_rankings, torch_batch_std_labels = uniform_noise_all_labels(
-                                    batch_ranking=torch_batch_rankings, batch_label=torch_batch_std_labels,
-                                    noise_ratio=noise_ratio, presort=False)
+
+                        if NOISE_TYPE[noise_type] == NOISE_TYPE.discrete_noise_all:
+                            torch_batch_rankings, torch_batch_std_labels = discrete_noise_all_labels(
+                                batch_ranking=torch_batch_rankings, batch_label=torch_batch_std_labels,
+                                noise_ratio = noise_ratio, presort= False, labels_num = labels_num)
+                        elif NOISE_TYPE[noise_type] == NOISE_TYPE.uniform_noise_all:
+                            torch_batch_rankings, torch_batch_std_labels = uniform_noise_all_labels(
+                                batch_ranking=torch_batch_rankings, batch_label=torch_batch_std_labels,
+                                noise_ratio=noise_ratio, presort=False, labels_num = labels_num)
+                        else:
+                            continue
 
                     if hot:
                         assert mask_label is not True  # not supported since it is rarely used.
@@ -916,7 +1019,7 @@ def load_letor_data_as_libsvm_data(in_file, split_type=None, data_id=None, min_d
 torch_zero = torch.FloatTensor([0.0])
 
 
-def discrete_noise_all_labels(batch_ranking, batch_label, noise_ratio, presort=False):
+def discrete_noise_all_labels(batch_ranking, batch_label, noise_ratio, presort=False, labels_num = 3):
     '''
     Mask the ground-truth labels with the specified ratio as '0'. Meanwhile, re-sort according to the labels if required.
     :param doc_reprs:
@@ -929,9 +1032,18 @@ def discrete_noise_all_labels(batch_ranking, batch_label, noise_ratio, presort=F
     size_ranking = batch_label.size(1)
     num_to_noise = int(size_ranking * noise_ratio)
     noise_ind = np.random.choice(size_ranking, size= num_to_noise, replace=False)
-    ind_num_rele = list(range(3))
+    ind_num_rele = list(range(labels_num))
+    if labels_num == 3:
+        labels_weight = [0.5,0.35,0.15]
+    elif labels_num == 2 :
+        labels_weight = [0.9,0.1]
+    elif labels_num == 5:
+        labels_weight = [0.5, 0.35,0.15,0.07,0.03]
+    else:
+        raise ValueError
+
     for noise_ind_iter in noise_ind:
-        batch_label[:, noise_ind_iter] = random.choices(ind_num_rele, weights=[0.5, 0.35, 0.15], k=1)[0]
+        batch_label[:, noise_ind_iter] = random.choices(ind_num_rele, weights=labels_weight, k=1)[0]
     if torch.gt(batch_label, torch_zero).any():  # whether the masked one includes explicit positive labels
         if presort:  # re-sort according to the labels if required
             raise TypeError('presort module not available')
@@ -947,7 +1059,7 @@ def discrete_noise_all_labels(batch_ranking, batch_label, noise_ratio, presort=F
         return batch_ranking,batch_label
 
 
-def uniform_noise_all_labels(batch_ranking, batch_label, noise_ratio, presort=False):
+def uniform_noise_all_labels(batch_ranking, batch_label, noise_ratio, presort=False, labels_num = 3):
     '''
     Mask the ground-truth labels with the specified ratio as '0'. Meanwhile, re-sort according to the labels if required.
     :param doc_reprs:
@@ -958,13 +1070,12 @@ def uniform_noise_all_labels(batch_ranking, batch_label, noise_ratio, presort=Fa
     '''
 
     size_ranking = batch_label.size(1)
-    num_to_noise = int(size_ranking * noise_ratio)
-    noise_ind = np.random.choice(size_ranking, size=num_to_noise, replace=False)
-    ind_num_rele = list(range(3))
-    for noise_ind_iter in noise_ind:
-        re_ind_num_rele = ind_num_rele.copy()
-        re_ind_num_rele.remove(batch_label[:, noise_ind_iter])
-        batch_label[:, noise_ind_iter] = random.choices(re_ind_num_rele , k=1)[0]
+    num_of_noise = int(size_ranking * noise_ratio)
+    noise_ind = np.random.choice(size_ranking, size=num_of_noise, replace=False)
+    ind_num_rele = list(range(labels_num))
+    re_ind_num_rele = ind_num_rele.copy()
+    for ind in noise_ind:
+        batch_label[:, ind] = random.choices(re_ind_num_rele , k=1)[0]
     if torch.gt(batch_label, torch_zero).any():  # whether the masked one includes explicit positive labels
         if presort:  # re-sort according to the labels if required
             raise TypeError('presort module not available')

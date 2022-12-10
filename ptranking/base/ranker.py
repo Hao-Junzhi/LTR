@@ -155,13 +155,13 @@ class NeuralRanker(AbstractNeuralRanker):
             ffnns.add_module('_'.join(['L', str(num_layers)]), nr_hn)
 
             if BN:  # before applying activation
-                ffnns.add_module('_'.join(['BN', str(num_layers)]),
-                                 nn.BatchNorm1d(out_dim, momentum=1.0, affine=True, track_running_stats=False))
+                nr_bn = nn.BatchNorm1d(out_dim, momentum=1.0, affine=True, track_running_stats=False)
+                ffnns.add_module('_'.join(['BN', str(num_layers)]), nr_bn)
 
             if apply_tl_af:
                 ffnns.add_module('_'.join(['ACT', str(num_layers)]), tail_AF)
 
-        # print(ffnns)
+        print(ffnns)
         # for w in ffnns.parameters():
         #    print(w.data)
 
@@ -219,6 +219,9 @@ class NeuralRanker(AbstractNeuralRanker):
 
     def forward(self, batch_ranking):
         if 1 == batch_ranking.size(0): # in order to support batch normalization
+            batch_output = self.sf(torch.squeeze(batch_ranking, dim=0))
+            batch_output = torch.unsqueeze(batch_output, dim=0)
+        elif len(batch_ranking.shape) == 3:
             batch_output = self.sf(torch.squeeze(batch_ranking, dim=0))
             batch_output = torch.unsqueeze(batch_output, dim=0)
         else:
