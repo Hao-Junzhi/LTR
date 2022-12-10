@@ -116,7 +116,7 @@ class ListMLEParameter(ModelParameter):
         :return:
         """
 		# using specified para-dict or inner para-dict
-		listmle_para_dict = given_para_dict if given_para_dict is not None else self.listmle_para_dict
+		listmle_para_dict = given_para_dict if given_para_dict is not None else dict(model_id=self.model_id, samples_per_query=1.0)
 
 		s1, s2 = (':', '\n') if log else ('_', '_')
 		listmle_para_str = s1.join(['SP', str(listmle_para_dict['samples_per_query'])])
